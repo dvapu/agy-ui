@@ -1,85 +1,241 @@
-# Claudinho
+# Antigravitinho
 
-O seu Claude Code, agora com mais vida. Um app de desktop que conversa com o **Claude Code** de verdade (pelo SDK oficial de agentes) e desenha a conversa sobre papéis de parede ASCII vivos, com o Clawd do seu lado: 15 temas animados com música e sons, 278 animações da biblioteca ASCII Magic, papéis de parede do Wallpaper Engine, vídeos, imagens e GIFs seus.
+**Live ASCII wallpaper + Honu mascot, injected straight into the real Antigravity window.**
+**Hình nền ASCII sống động + linh vật rùa Honu, chèn thẳng vào cửa sổ Antigravity thật.**
 
-Site: [meuclaudinho.com.br](https://meuclaudinho.com.br) · Feito por [Luis Roberto](https://luisrobertoportifolio.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron)](https://www.electronjs.org/)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)](https://www.microsoft.com/windows)
+[![Tests](https://img.shields.io/badge/tests-6%20passing-brightgreen)](test)
 
-## Instalar
+---
 
-1. Instale o [Claude Code](https://code.claude.com/docs/en/setup) e entre com a sua conta (o Claudinho usa o Claude Code que está no seu computador).
-2. Baixe o instalador em [Releases](../../releases/latest) (`Claudinho-Setup.exe`) e abra. Windows 10 ou 11.
-3. Depois de instalado, o Claudinho se atualiza sozinho: baixa a versão nova em segundo plano e avisa na barra lateral (também em Personalizar → Geral → Atualizações).
-4. O instalador não é assinado: se o Windows mostrar "O Windows protegeu o seu computador", clique em **Mais informações → Executar assim mesmo**.
+## What this is / Đây là gì
 
-**Como o Claudinho entra no Claude**: por padrão, com o login do próprio Claude Code (o seu plano). Em Personalizar → Geral → Conta dá pra usar uma **chave de API da Anthropic** no lugar (cobrada por uso); a chave fica cifrada pelo sistema.
+A tiny tray app that draws an animated ASCII landscape **inside** your
+Antigravity window. No second chat app. No database access. Antigravity stays
+Antigravity — your conversations, `/code`, agents and MCP servers keep working.
 
-## Desenvolver
+Một app tray nhỏ, vẽ phong cảnh ASCII động **bên trong** cửa sổ Antigravity.
+Không có app chat thứ hai. Không đụng database. Antigravity vẫn là Antigravity —
+hội thoại, `/code`, agent và MCP của bạn chạy y như cũ.
 
-```bash
-npm install
-npm start          # abre o app
-npm run dist       # gera o instalador em dist/
+```
+┌─────────────────────────────────────────────┐
+│  Antigravity (unchanged, still fully usable)│
+│  ┌───────────────────────────────────────┐  │
+│  │  ← injected layer: ASCII art + Honu   │  │
+│  │    (pointer-events: none)             │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+             ▲
+             │ Chrome DevTools Protocol
+             │ (Runtime.evaluate only)
+        ┌────┴────────────────┐
+        │  Antigravitinho     │  ← tray app, no window
+        └─────────────────────┘
 ```
 
-## Como usar
+---
 
-- **Pasta do projeto** (barra lateral): a pasta onde o Claude Code trabalha.
-- **Conversas**: "Todas" mostra as conversas do Claude Code de todos os projetos (as do terminal, do app do Claude na aba Code e das outras janelas), com o nome do projeto em cada uma; "Esta pasta" mostra só as da pasta atual. A lista sincroniza sozinha quando qualquer conversa muda, e o botão ⟳ força na hora. Abrir uma conversa de outro projeto leva a janela para a pasta dele. As conversas do claude.ai (chat da web/app) não aparecem: elas ficam nos servidores da Anthropic, sem acesso oficial.
-- **Modelo e permissões**: escolha na barra lateral. Em "Perguntar", cada ferramenta que precisa de aprovação aparece como um cartão com Permitir, Sempre nesta sessão e Negar.
-- **Temas**: peça ao Claude (*"deixa o chat com a Honu Lagoon"*), digite `/tema`, `/tema lareira`, `/tema padrão`, ou use o botão 🎨 Temas.
-- **Biblioteca**: a aba Biblioteca do seletor tem 278 animações da [ASCII Magic](https://www.ascii-magic.com/ascii) (MIT), de 9 categorias: paisagens, cidades, cosmos, clima e natureza, animais, algoritmos, arcade, datas e mascotes (a lista fica em `tools/indice-magia.mjs`), com busca e categorias. `/fundo gato` abre a busca; o Claude também procura e aplica (*"põe um fundo de chuva"*).
-- **Meus**: crie no [ASCII Motion](https://www.ascii-motion.com), exporte como JSON e importe (botão, `/importar` ou arrastando o arquivo para a aba). Sessões `.asciimtn` sem camadas também entram.
-- **Anexos**: clipe no campo de mensagem, arrastar arquivos para a janela ou colar imagens (Ctrl+V). Imagens vão para o Claude; os outros arquivos ele abre pelo caminho.
-- **Comandos**: digite `/` para ver os comandos do app e os do Claude Code (skills, `/compact`, `/review`…). Setas escolhem, Tab completa, Enter executa.
-- **Esforço**: a barrinha ao lado do modelo define quanto o Claude pensa (padrão a máximo). Permissões e modelo abrem um menu que explica cada opção.
-- **Conversas**: fixar no topo, duplicar, exportar em Markdown, renomear e apagar (menu ⋯). A busca (Ctrl+K) procura também dentro das mensagens.
-- **Respostas**: copiar, ler em voz alta e **ramificar daqui** (nova conversa a partir daquela resposta; a original fica intacta). Hora em cada mensagem.
-- **Enquanto o Claude trabalha**: o que você enviar entra na fila e sai quando ele terminar. O plano dele (lista de tarefas) fica fixo acima do campo, e o medidor ao lado do botão mostra quanto do contexto já foi usado.
-- **Avisos**: com a janela em segundo plano, uma notificação avisa quando o Claude termina ou precisa de aprovação. Ctrl+Shift+Espaço mostra o Claudinho de qualquer lugar. Ctrl+/ lista os atalhos.
-- **Clawd**: o mascote do Claude Code está em todo lugar. Na abertura ele se monta com ladrilhos; na tela inicial ele segue o mouse com os olhos, acena quando você passa por cima, pula e solta faíscas no clique e dorme se você fica parado; ao lado do campo de mensagem ele acompanha o Claude (pensa, digita, chama você, pula quando termina); na barra lateral e no "pensando" ele balança e digita. Dá pra **pegar o Clawd** ao lado do campo: ele balança pendurado no mouse, cai quando você solta (e fica tonto se for arremessado) e volta andando pro lugar; clique nele e ele pula e fala (tem muitas falas). De vez em quando ele espia de trás da barra lateral quando você passa o mouse num projeto. Ele também é o ícone do app; o atalho **Claudinho** na pasta abre o app com esse ícone.
-- **Várias janelas**: abra uma conversa em outra janela (menu ⋯ da conversa) ou uma janela nova com Ctrl+Shift+N; cada janela tem a sua conversa.
-- **Barra lateral**: grupos (pastas que abrem e fecham; arraste conversas para elas) e cores para as conversas, no menu ⋯.
-- **Respostas longas** vêm dobradas, com um índice dos títulos e "Ler a resposta inteira".
-- **Janelinhas flutuantes** (arraste pelo título, redimensione pelo canto e fixe no alfinete para ela ficar aberta no mesmo lugar, mesmo depois de fechar o app): **Alterações da conversa** (botão no topo: todos os arquivos mudados, com diff e "desfazer a partir daqui"), o **plano** do Claude destacado e o **player de música** (no botão de som).
-- **Clique direito** no papel de parede abre um menu radial. `!comando` no campo pede ao Claude para rodar no terminal. Clique direito num bloquinho do trilho volta os arquivos para antes dali.
-- **Enquanto o Claude trabalha**: o raciocínio aparece num bloco recolhível, cada ferramenta vira um bloquinho no trilho do topo (clique para ir até ela), edições aparecem como diff (+/−), e o papel de parede reage (ondas, ritmo).
-- **Desfazer**: passe o mouse numa mensagem sua e clique na seta: os arquivos que o Claude mudou a partir dali voltam ao que eram (com prévia antes).
-- **Perguntas do Claude** viram um formulário com as opções; **textos colados grandes** viram um anexo que dá pra abrir e editar; **título automático** para conversas novas; aviso e "continuar sozinho" quando o limite do plano estoura.
-- **Personalizar** (barra lateral ou `/personalizar`):
-  - **Geral**: enviar com Enter ou Ctrl+Enter, **desempenho** (Automático, Máximo ou Leve), mostrar raciocínio, título automático, Clawd, papel de parede que reage, notificações e a **conta** (login do Claude Code ou chave de API).
-  - **Fundo**: imagens, GIFs e vídeos seus como papel de parede (também arrastando para a aba Meus), e papéis de parede de vídeo e de página do **Wallpaper Engine** (os de cena só rodam dentro dele), com ajuste, escurecer, desfocar e som do vídeo.
-  - **Cores**: paletas prontas, cor de destaque, do texto e do vidro, opacidade e desfoque do vidro, vidro claro ou escuro.
-  - **Fontes**: fonte da interface e do código (da internet ou seus arquivos .ttf/.otf/.woff), tamanho do texto e largura da conversa.
-  - **Sons**: um som seu para enviar, terminar, pedido de aprovação, erro, clique no papel de parede e abrir o app.
-  - **Música**: suas músicas tocando em sequência ou aleatórias, no lugar da música dos temas ou junto (controles também no botão de som).
-  - **Ícone e nome**: ícone da janela e da barra de tarefas, opcionalmente na barra lateral, e o nome do app.
-  - Os arquivos ficam copiados em `%APPDATA%\Claudinho\pessoal`; "Restaurar tudo" volta ao padrão.
-- **Uso do plano** (botão de fôlego no topo): o Clawd treina na academia; vai cansando conforme a sessão de 5 horas enche e dorme quando bate o limite, com a hora em que libera. Mostra também a semana e por modelo.
-- **Clawd conversa**: de tempos em tempos ele comenta o projeto, conta curiosidades do Claude e da Anthropic, dá dicas do app e traz novidades (uma busca rápida por dia). Clique nele para ouvir a próxima. Dá pra desligar em Personalizar → Geral.
-- **Créditos**: na barra lateral, quem fez cada arte e cada parte do app.
-- **Som**: botão no topo (começa desligado).
-- `/nova` começa uma conversa nova.
+## Why not just an always-on-top window? / Sao không phủ cửa sổ nổi?
 
-## Estrutura
+Because it lies. An always-on-top transparent window drifts out of alignment
+the moment you move or resize Antigravity, and it dims the text behind it.
 
-- `src/main.js`: a janela e a ponte com o Claude Code (`query()` do `@anthropic-ai/claude-agent-sdk`), permissões e as ferramentas de tema que o Claude pode chamar.
-- `src/preload.cjs`: as chamadas que a janela pode fazer.
-- `src/renderer/`: a interface (`index.html`, `app.css`, `app.js`) e o motor dos papéis de parede (`wallpapers/`).
-- `src/renderer/wallpapers/arte.mjs`: toca as peças da ASCII Magic e as animações importadas; `magia-indice.js` é gerado por `node tools/indice-magia.mjs`.
-- `docs/pesquisa-melhorias.md`: o que os usuários mais pedem ao Claude e conceitos de design, com o que já foi feito e o que falta.
-- `src/renderer/personalizar.js`: o painel Personalizar (cores, fontes, sons, música, ícone e nome).
-- `src/renderer/extras.js`, `clawd-arte.js`, `clawd.js`, `interface.js`, `os.js`: raciocínio, diffs, desfazer, perguntas, limites, o Clawd, o trilho de atividade, as janelinhas e o menu radial.
-- `src/renderer/simulador.js`: abre a interface num navegador comum com respostas de mentira, para mexer no visual sem o Claude Code.
+**This app injects DOM into Antigravity itself.** The layer is a child of AGY's
+page, so it moves, resizes and minimises together with the window. Zero drift.
 
-## Testes
+Bởi vì nó nói dối. Cửa sổ trong suốt luôn trên cùng sẽ lệch ngay khi bạn di
+chuyển hay resize Antigravity, và nó làm tối chữ phía sau.
 
-- `node tools/teste-sdk.mjs`: uma pergunta curta pelo SDK, para conferir o login e o streaming.
-- `VIVO_LOG=1 VIVO_TESTE="mensagem" npm start`: envia a mensagem ao abrir e registra os eventos no terminal (`VIVO_ANEXO=arquivo` anexa um arquivo).
-- `node`/testes: com `VIVO_PASTA` ou `VIVO_JS` o app usa um perfil separado (`%APPDATA%\Claudinho-teste`), então os testes não mexem nas suas configurações e rodam com o app aberto.
-- `VIVO_MOTION=arquivo.json`: importa uma animação do ASCII Motion ao abrir. `VIVO_JS="expressão" VIVO_FOTO=tela.png`: roda um código na janela e salva uma foto dela.
+**App này chèn DOM vào chính Antigravity.** Lớp phủ là con của trang AGY, nên
+nó di chuyển, resize, thu nhỏ cùng cửa sổ. Không bao giờ lệch.
 
-## Licença e créditos
+---
 
-Código sob a licença MIT (veja `LICENSE`). As animações da biblioteca vêm do pacote [ascii-magic-art](https://www.ascii-magic.com/ascii) (MIT). O Claude Agent SDK é da Anthropic e segue os termos dela.
+## Install / Cài đặt
 
-O Claudinho é um projeto independente de fã. Não é afiliado nem endossado pela Anthropic. Claude, Claude Code e Clawd são marcas da Anthropic.
+```powershell
+git clone https://github.com/dvapu/agy-ui
+cd agy-ui
+npm install
+npm start
+```
+
+`npm start` opens **no window**. Only a tray icon. Right-click it → **Gắn lại ngay**.
+
+`npm start` **không mở cửa sổ nào**. Chỉ có icon ở khay. Chuột phải → **Gắn lại ngay**.
+
+### Build installer / Đóng gói
+
+```powershell
+npm run dist
+# -> dist/Antigravitinho-Setup.exe
+```
+
+---
+
+## Themes / Giao diện
+
+Six animated ASCII scenes. Each is drawn as vector art, then **quantised into a
+character grid** — that's where the texture comes from.
+
+Sáu cảnh ASCII động. Mỗi cảnh vẽ bằng vector rồi **lượng tử hoá thành lưới ký
+tự** — đó là nguồn gốc của chất liệu.
+
+| | Theme | Description / Mô tả |
+|---|---|---|
+| 🐢 | `lagoon` | Hawaiian lagoon — sea turtles, manta rays, dolphins, whales, hibiscus |
+| 🎏 | `koi` | Japanese koi pond — lotus leaves, blossoms, drifting petals |
+| 🌌 | `galaxy` | Spiral galaxy — two arms, three star layers, meteors |
+| 💻 | `matrix` | Digital rain — katakana + hex, glowing heads |
+| 🔥 | `fireplace` | Cozy hearth — separated flame tongues, embers, smoke |
+| 🌧️ | `rain` | Cyber city at night — skyline, neon, water ripples |
+
+Switch from the tray menu, or from the control bar that floats above
+Antigravity's prompt box.
+
+Đổi từ menu khay, hoặc từ thanh điều khiển nổi ngay trên ô prompt của Antigravity.
+
+---
+
+## Control bar / Thanh điều khiển
+
+A slim bar sits right above Antigravity's prompt input:
+
+Một thanh mảnh nằm ngay trên ô soạn tin của Antigravity:
+
+```
+[▾] [🐢 Đầm Phá Hawaii ▾] │ [Mờ][Vừa][Đậm] │ [🐢] [✕]
+```
+
+| Control | Action |
+|---|---|
+| `▾` | Collapse / expand the bar |
+| Theme select | Switch scene instantly |
+| Mờ / Vừa / Đậm | Opacity: 25% / 55% / 85% |
+| 🐢 | Hide / show the mascot |
+| ✕ | Turn the layer off — **stays off** until you re-enable from the tray |
+
+**The ✕ is respected.** The watcher distinguishes "Antigravity wiped the DOM
+because you changed conversation" from "the user turned it off". It records
+intent in `window.__antigravitinhoTat` + `sessionStorage`, so it will not
+fight you.
+
+**Nút ✕ được tôn trọng.** Bộ theo dõi phân biệt "Antigravity xoá DOM do đổi
+hội thoại" với "người dùng chủ động tắt". Ý định được ghi vào
+`window.__antigravitinhoTat` + `sessionStorage`, nên nó không bật lại sau lưng bạn.
+
+---
+
+## How it works / Cách hoạt động
+
+1. Read `%APPDATA%\Antigravity\DevToolsActivePort` → get the debug port.
+2. `GET http://127.0.0.1:<port>/json/list` → find the AGY page target.
+3. Hand-rolled WebSocket (no dependencies) → send one `Runtime.evaluate`.
+4. The payload is a self-contained IIFE containing the whole render engine.
+5. A 1.5 s watcher re-injects if AGY wiped the DOM.
+
+Details: [`docs/KIEN-TRUC.md`](docs/KIEN-TRUC.md)
+
+### One technical trap worth knowing / Một cái bẫy kỹ thuật
+
+**`requestAnimationFrame` stops completely when the window is occluded.**
+Measured on this machine: `rAF` = 0 ticks in 1.6 s, `setInterval` = 2 ticks.
+If you use rAF, the wallpaper freezes the moment another window covers
+Antigravity. This project uses `setInterval` for the injected layer — do not
+"optimise" it back.
+
+**`requestAnimationFrame` dừng hẳn khi cửa sổ bị che.** Đo thực tế: `rAF` = 0
+tick trong 1.6 giây, `setInterval` = 2 tick. Dùng rAF là hình nền đứng im ngay
+khi có cửa sổ khác che Antigravity. Dự án này dùng `setInterval` cho lớp phủ
+đã chèn — đừng "tối ưu" ngược lại.
+
+---
+
+## Does an Antigravity update break it? / Antigravity cập nhật có hỏng không?
+
+Mostly no. This app patches **nothing** — it reads one text file and writes to
+RAM. If AGY keeps its debug port open (it does, it's Electron), everything keeps
+working across updates.
+
+Phần lớn là không. App này **không patch gì cả** — nó đọc 1 file text và ghi
+vào RAM. Miễn AGY còn mở cổng debug (có, vì nó là Electron), mọi thứ vẫn chạy
+qua các b��n cập nhật.
+
+| Scenario | Result |
+|---|---|
+| AGY updates, port still open | ✅ Works, self-heals in 1.5 s |
+| AGY redesigns its UI | ⚠️ Layer still shows, control bar may need repositioning |
+| AGY disables the debug port | ❌ Stops. See [`docs/CAP-NHAT-AGY.md`](docs/CAP-NHAT-AGY.md) |
+
+**Never affected / Không bao giờ bị ảnh hưởng:** conversations, `/code`,
+agents, MCP servers, settings, `app.asar`.
+
+Full checklist: [`docs/CAP-NHAT-AGY.md`](docs/CAP-NHAT-AGY.md)
+
+---
+
+## Development / Phát triển
+
+```powershell
+npm start                # tray app
+npm test                 # 6 tests: syntax, contracts, injection safety
+npm run check            # syntax only
+npm run do-cong          # diagnose: is AGY running? is the layer attached?
+npx electron tools/render-themes.js   # render all 6 themes to dist-anh/*.png
+```
+
+### Project layout
+
+```
+src/
+├── main.js              # tray app: menu, watcher, settings
+├── agy-bridge.js        # hand-rolled CDP + WebSocket (no deps)
+├── injector.js          # builds the self-contained injection payload
+└── renderer/
+    ├── themes-engine.js # 6 themes + vector→ASCII quantiser
+    ├── lagoon-engine.js # the original lagoon scene (24.5 s cycle)
+    └── mascot.js        # Honu: eyes follow cursor, blinks, speaks
+tools/
+├── render-themes.js     # render themes to PNG for visual review
+└── kiem-tra-cong.js     # connectivity / attachment diagnosis
+test/
+└── syntax.test.js       # contract & safety tests
+docs/
+├── KIEN-TRUC.md         # architecture in depth
+├── CAU-HINH.md          # step-by-step configuration
+├── CAP-NHAT-AGY.md      # what happens after an AGY update
+├── API-IPC.md           # IPC contract (legacy window mode)
+└── TASKS.md             # TODO list with self-contained instructions
+```
+
+---
+
+## Contributing for AI agents / Dành cho AI agent
+
+Read **[`AGENTS.md`](AGENTS.md)** first. It contains hard rules — most
+importantly: **never touch Antigravity's database**. Then work through
+[`docs/TASKS.md`](docs/TASKS.md) in order.
+
+Đọc **[`AGENTS.md`](AGENTS.md)** trước. Trong đó có quy tắc cứng — quan trọng
+nhất: **không bao giờ chạm database của Antigravity**. Sau đó làm theo
+[`docs/TASKS.md`](docs/TASKS.md) đúng thứ tự.
+
+---
+
+## Credits / Ghi công
+
+- Inspired by [**Claudinho**](https://github.com/Lu1sR0/claudinho) by
+  [Luis Roberto](https://luisrobertoportifolio.com) — the idea of putting live
+  ASCII art beside an AI coding agent, and the Honu Lagoon scene.
+- Lagoon scene ported from that project's ASCII wallpaper engine.
+- This project is an independent fan work. Not affiliated with or endorsed by
+  Google. Antigravity is a Google product.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

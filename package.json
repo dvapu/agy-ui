@@ -1,55 +1,57 @@
 {
-  "name": "claudinho",
-  "productName": "Claudinho",
-  "version": "1.0.2",
+  "name": "agy-ui",
+  "productName": "Antigravitinho",
+  "version": "1.0.0",
   "private": true,
-  "description": "Claudinho: o seu Claude Code, agora com mais vida",
+  "description": "Live ASCII wallpaper + Honu mascot injected straight into the real Antigravity window. No separate chat app, no database access.",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis"
-  },
-  "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.3.312",
-    "ascii-magic-art": "^1.1.0",
-    "electron-updater": "^6.8.11",
-    "marked": "^18.1.2",
-    "zod": "^4.6.7"
+    "dist": "electron-builder --win nsis",
+    "test": "node --test test/*.test.js",
+    "check": "node test/syntax.test.js",
+    "do-cong": "node tools/kiem-tra-cong.js"
   },
   "devDependencies": {
     "electron": "^45.1.0",
     "electron-builder": "^26.18.0"
   },
   "author": {
-    "name": "Luis Roberto",
-    "url": "https://luisrobertoportifolio.com"
+    "name": "dvapu"
   },
-  "homepage": "https://meuclaudinho.com.br",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvapu/agy-ui.git"
+  },
+  "homepage": "https://github.com/dvapu/agy-ui#readme",
+  "keywords": [
+    "antigravity",
+    "agy",
+    "ascii",
+    "wallpaper",
+    "electron",
+    "mascot"
+  ],
   "build": {
-    "appId": "com.claudinho.app",
-    "productName": "Claudinho",
-    "copyright": "Luis Roberto",
+    "appId": "com.agyui.antigravitinho",
+    "productName": "Antigravitinho",
     "directories": {
       "output": "dist"
     },
     "files": [
       "src/**/*",
-      "package.json",
-      "!node_modules/@anthropic-ai/claude-agent-sdk-*/**",
-      "!**/*.map"
+      "package.json"
     ],
     "asar": true,
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
-      "icon": "src/icone.ico"
+      "icon": "src/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -57,19 +59,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Claudinho",
-      "artifactName": "Claudinho-Setup.exe",
-      "installerIcon": "src/icone.ico",
-      "uninstallerIcon": "src/icone.ico",
-      "uninstallDisplayName": "Claudinho"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "Lu1sR0",
-        "repo": "claudinho",
-        "releaseType": "release"
-      }
-    ]
+      "shortcutName": "Antigravitinho",
+      "artifactName": "Antigravitinho-Setup.exe"
+    }
   }
 }
