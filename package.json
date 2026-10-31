@@ -1,57 +1,51 @@
 {
-  "name": "agy-ui",
+  "name": "antigravitinho",
   "productName": "Antigravitinho",
   "version": "1.0.0",
   "private": true,
-  "description": "Live ASCII wallpaper + Honu mascot injected straight into the real Antigravity window. No separate chat app, no database access.",
+  "description": "Desktop App cho Antigravity (AGY) — trò chuyện AI với hình nền ASCII sống động",
   "type": "module",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis",
-    "test": "node --test test/*.test.js",
-    "check": "node test/syntax.test.js",
-    "do-cong": "node tools/kiem-tra-cong.js"
+    "shortcut": "powershell -ExecutionPolicy Bypass -File tools/tao-shortcut.ps1",
+    "shortcut:go": "powershell -ExecutionPolicy Bypass -File tools/tao-shortcut.ps1 -Go",
+    "test": "node --test test/syntax.test.js tools/test-chan-dialog.mjs",
+    "dist": "electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "^45.1.0",
     "electron-builder": "^26.18.0"
   },
   "author": {
-    "name": "dvapu"
+    "name": "Antigravity User"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/dvapu/agy-ui.git"
-  },
-  "homepage": "https://github.com/dvapu/agy-ui#readme",
-  "keywords": [
-    "antigravity",
-    "agy",
-    "ascii",
-    "wallpaper",
-    "electron",
-    "mascot"
-  ],
   "build": {
-    "appId": "com.agyui.antigravitinho",
+    "appId": "com.antigravitinho.app",
     "productName": "Antigravitinho",
     "directories": {
       "output": "dist"
     },
     "files": [
       "src/**/*",
+      "assets/icon.png",
+      "assets/icon.ico",
+      "assets/khay-16.png",
+      "assets/khay-32.png",
+      "assets/agy-a.png",
       "package.json"
     ],
     "asar": true,
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
-      ],
-      "icon": "src/icon.ico"
+      ]
     },
     "nsis": {
       "oneClick": false,

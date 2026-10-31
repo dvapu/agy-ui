@@ -1,38 +1,48 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Antigravitinho — Main process
+// Antigravitinho — main process
 //
-// Đây KHÔNG phải một app chat. Không có cửa sổ riêng.
-// Đây là app chạy nền (tray): nó chèn hình nền ASCII + Honu THẲNG VÀO cửa sổ
-// Antigravity thật, rồi tự gắn lại khi AGY đổi trang hoặc khởi động lại.
+// Kiến trúc: KHÔNG có cửa sổ chat riêng.
+// Ứng dụng chạy nền dưới khay hệ thống, tìm cổng DevTools của Antigravity
+// thật rồi chèn lớp phủ (hình nền ASCII + mascot chữ A) THẲNG vào DOM của
+// cửa sổ AGY qua CDP.
 //
-// Nguyên tắc: không sửa file của AGY, không đọc/ghi DB của AGY.
-// Chỉ đọc DevToolsActivePort và gửi DOM qua Chrome DevTools Protocol.
+// Nhờ vậy toàn bộ database, lịch sử hội thoại, subagent và slash command
+// của Antigravity được giữ nguyên 100% — app chỉ vẽ lên trên.
+//
+// Nguyên tắc chống lỗi đã áp dụng:
+//   · Single instance lock — không bao giờ có 2 icon khay / 2 dialog
+//   · Vòng theo dõi dùng đệ quy setTimeout (không dồn ứ khi CDP chậm)
+//   · Dialog lỗi: chỉ một cái mở tại một thời điểm, có giãn cách 10 phút,
+//     và KHÔNG BAO GIỜ mở từ vòng lặp tự động
+//   · Bắt mọi unhandledRejection / uncaughtException để không crash
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { app, Tray, Menu, nativeImage, shell, dialog } from "electron";
+import { app, Tray, Menu, nativeImage, shell, globalShortcut, dialog } from "electron";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn, execSync } from "child_process";
-
-import { ganVaoAgy, goKhoiAgy, trangThaiLopPhu, docCongDebug, xoaCoTat } from "./agy-bridge.js";
-import { taoMaInjection, TEN_THEME, PHIEN_BAN_LOP_PHU } from "./injector.js";
+import { ganVaoAgy, goKhoiAgy, dangCoLopPhu } from "./agy-bridge.js";
+import { taoMaInjection, TEN_THEME } from "./injector.js";
+import { ChanDialog } from "./chan-dialog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// ─── Đường dẫn ──────────────────────────────────────────────────────────────
+// ─── Đường dẫn ───────────────────────────────────────────────────────────────
 const DATA_DIR = join(app.getPath("userData"), "data");
 const SETTINGS_PATH = join(DATA_DIR, "thiet-lap.json");
-if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+const ASSETS = join(__dirname, "..", "assets");
 
-// ─── Thiết lập mặc định ─────────────────────────────────────────────────────
+try { if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true }); } catch { }
+
+// ─── Thiết lập mặc định ──────────────────────────────────────────────────────
 const MAC_DINH = {
-  chuDe: "lagoon",       // theme hình nền
-  doDam: 0.55,           // độ đậm (0.1 – 0.95)
-  tuDongGan: true,       // tự gắn khi AGY chạy
-  khoiDongCung: false,   // khởi động cùng Windows
-  hienThanhDieuKhien: true,  // thanh chỉnh giao diện nổi trên ô prompt
+  chuDe: "lagoon",      // theme hình nền
+  doDam: 0.55,          // độ đậm lớp ASCII (0.1 – 0.95)
+  coMascot: 88,         // cạnh mascot (px)
+  tuDongGan: true,      // tự gắn lại khi AGY tải lại / khởi động
+  dangGan: false,       // lớp đang gắn trong DOM AGY
 };
 
 let thietLap = { ...MAC_DINH };
@@ -46,96 +56,124 @@ const luuThietLap = () => {
   try { writeFileSync(SETTINGS_PATH, JSON.stringify(thietLap, null, 2)); } catch { }
 };
 
-// ─── Trạng thái runtime ─────────────────────────────────────────────────────
+// ─── Trạng thái ──────────────────────────────────────────────────────────────
 let tray = null;
-let dongHo = null;
-let dangGan = false;
-let loiGanCuoi = null;
-let agyDangChay = false;
+let dangTheoDoi = false;
+let dangGanThat = false;
+let lanLoiCuoi = "";
+let lanGanLoi = 0;            // số lần gắn lỗi liên tiếp
+let dangGan = false;          // chống gọi ganLopPhu chồng nhau
 
-// ─── Sinh mã chèn ───────────────────────────────────────────────────────────
-function maHienTai() {
-  return taoMaInjection({
-    chuDe: thietLap.chuDe,
-    doDam: thietLap.doDam,
-    moThanhDieuKhien: thietLap.hienThanhDieuKhien !== false,
-  });
-}
+// Bộ chặn spam hộp thoại: 1 cái/lần, giãn cách 10 phút, tối đa 3 lần/phiên
+const chanDialog = new ChanDialog({
+  gianCachMs: 10 * 60 * 1000,
+  soLanToiDa: 3,
+});
 
-async function ganNgay(imLang = true) {
-  // Xoá cờ "đã tắt" trước — người dùng bấm "Gắn lại ngay" nghĩa là muốn bật
-  await xoaCoTat();
-  const kq = await ganVaoAgy(maHienTai());
-  if (kq.ok) {
-    dangGan = true;
-    loiGanCuoi = null;
-  } else {
+const CHU_KY_THEO_DOI = 3000;
+
+// Bắt lỗi toàn cục — app phải sống tiếp, không được crash
+process.on("unhandledRejection", (e) => {
+  console.error("[Antigravitinho] unhandledRejection:", e?.message || e);
+});
+process.on("uncaughtException", (e) => {
+  console.error("[Antigravitinho] uncaughtException:", e?.message || e);
+});
+
+// ─── Chèn / gỡ lớp phủ ───────────────────────────────────────────────────────
+async function ganLopPhu(imLang = false) {
+  if (dangGan) return { ok: false, loi: "đang gắn" };
+  dangGan = true;
+  try {
+    const ma = taoMaInjection({
+      chuDe: thietLap.chuDe,
+      doDam: thietLap.doDam,
+      co: thietLap.coMascot,
+    });
+
+    const kq = await ganVaoAgy(ma);
+    dangGanThat = !!kq.ok;
+    thietLap.dangGan = dangGanThat;
+    luuThietLap();
+    capNhatTray();
+
+    if (kq.ok) {
+      lanGanLoi = 0;
+      chanDialog.datLai();       // hoạt động lại thì cho phép hỏi lại sau này
+    } else {
+      lanGanLoi++;
+      lanLoiCuoi = kq.loi || "Không rõ lỗi";
+      // Chỉ hỏi khi người dùng CHỦ ĐỘNG bấm, không bao giờ từ vòng lặp tự động
+      if (!imLang) hoiMoAntigravity();
+    }
+    return kq;
+  } finally {
     dangGan = false;
-    loiGanCuoi = kq.loi || "Không rõ lỗi";
-    if (!imLang && tray) {
-      dialog.showMessageBox({
-        type: "info",
-        title: "Chưa gắn được vào Antigravity",
-        message: "Không kết nối được cửa sổ Antigravity.",
-        detail:
-          "Hãy chắc chắn Antigravity đang mở, rồi bấm “Gắn lại ngay”.\n\n" +
-          `Chi tiết: ${loiGanCuoi}`,
-        buttons: ["Đã hiểu"],
-      });
-    }
   }
-  capNhatTray();
-  return kq.ok;
 }
 
-async function goNgay() {
-  await goKhoiAgy();
-  dangGan = false;
-  capNhatTray();
+async function goLopPhu() {
+  try {
+    const ok = await goKhoiAgy();
+    dangGanThat = false;
+    thietLap.dangGan = false;
+    luuThietLap();
+    capNhatTray();
+    return ok;
+  } catch {
+    dangGanThat = false;
+    capNhatTray();
+    return false;
+  }
 }
 
-// ─── Đồng hồ tự gắn lại ─────────────────────────────────────────────────────
-// AGY là SPA: khi đổi hội thoại / tải lại, React thay toàn bộ DOM và lớp phủ
-// bị xoá. Kiểm tra định kỳ rồi chèn lại. 1.5s là đủ nhanh, gần như không thấy nháy.
-//
-// QUAN TRỌNG: phải phân biệt "DOM bị xoá do SPA" với "người dùng bấm tắt".
-// Người dùng bấm ✕ -> injector đặt window.__antigravitinhoTat = true và ghi
-// sessionStorage. Đồng hồ thấy cờ đó thì KHÔNG chèn lại nữa.
-function batDongHo() {
-  if (dongHo) return;
-  dongHo = setInterval(async () => {
-    if (!thietLap.tuDongGan) return;
-
-    agyDangChay = docCongDebug() !== null;
-    if (!agyDangChay) {
-      if (dangGan) { dangGan = false; capNhatTray(); }
-      return;
+// ─── Theo dõi: AGY là SPA, điều hướng/tải lại sẽ xoá DOM nên phải gắn lại ───
+// Dùng đệ quy setTimeout (không phải setInterval) để lượt sau chỉ chạy khi
+// lượt trước đã xong — tránh dồn ứ khi CDP chậm hoặc AGY đang bận.
+async function vongTheoDoi() {
+  if (!dangTheoDoi) return;
+  try {
+    if (thietLap.tuDongGan && !dangGan) {
+      const con = await dangCoLopPhu();
+      if (!con) {
+        dangGanThat = false;
+        await ganLopPhu(true);     // im lặng: KHÔNG mở dialog từ vòng lặp
+      } else if (!dangGanThat) {
+        dangGanThat = true;
+        lanGanLoi = 0;
+        capNhatTray();
+      }
     }
-
-    const tt = await trangThaiLopPhu();
-    if (!tt.ketNoi) return;
-
-    // Người dùng đã chủ động tắt -> tôn trọng, không chèn lại
-    if (tt.tat) {
-      if (dangGan) { dangGan = false; capNhatTray(); }
-      return;
-    }
-
-    if (tt.co && tt.phienBan === PHIEN_BAN_LOP_PHU) {
-      if (!dangGan) { dangGan = true; capNhatTray(); }
-      return;
-    }
-
-    // Không có lớp phủ, hoặc đang chạy bản code cũ -> gắn lại
-    await ganNgay();
-  }, 1500);
+  } catch (e) {
+    console.error("[Antigravitinho] lỗi vòng theo dõi:", e?.message || e);
+  } finally {
+    if (dangTheoDoi) setTimeout(vongTheoDoi, CHU_KY_THEO_DOI);
+  }
 }
 
-// ─── Mở Antigravity bản thật ────────────────────────────────────────────────
+function batDauTheoDoi() {
+  if (dangTheoDoi) return;
+  dangTheoDoi = true;
+  setTimeout(vongTheoDoi, CHU_KY_THEO_DOI);
+}
+
+function dungTheoDoi() {
+  dangTheoDoi = false;
+}
+
+// ─── Mở Antigravity thật ─────────────────────────────────────────────────────
 function moAntigravity() {
-  const exe = join(process.env.LOCALAPPDATA || "", "Programs", "antigravity", "Antigravity.exe");
-  if (existsSync(exe)) {
-    try { spawn(exe, [], { detached: true, stdio: "ignore" }).unref(); return true; } catch { }
+  const ungVien = [
+    join(process.env.LOCALAPPDATA || "", "Programs", "antigravity", "Antigravity.exe"),
+    "C:\\Program Files\\Antigravity\\Antigravity.exe",
+    "C:\\Program Files (x86)\\Antigravity\\Antigravity.exe",
+  ];
+  for (const exe of ungVien) {
+    if (!existsSync(exe)) continue;
+    try {
+      spawn(exe, [], { detached: true, stdio: "ignore" }).unref();
+      return true;
+    } catch { /* thử đường khác */ }
   }
   try {
     execSync('start "" "Antigravity"', { shell: "cmd.exe", stdio: "ignore", windowsHide: true });
@@ -143,157 +181,243 @@ function moAntigravity() {
   } catch { return false; }
 }
 
-// ─── Khởi động cùng Windows ─────────────────────────────────────────────────
-function datKhoiDongCung(bat) {
-  thietLap.khoiDongCung = !!bat;
-  luuThietLap();
-  try {
-    app.setLoginItemSettings({ openAtLogin: !!bat, args: ["--nen"] });
-  } catch { }
-  capNhatTray();
+/**
+ * Hỏi người dùng có mở Antigravity không.
+ * Mọi việc chặn spam do ChanDialog lo: 1 hộp thoại/lần, giãn cách 10 phút,
+ * tối đa 3 lần mỗi phiên, và KHÔNG BAO GIỜ được gọi từ vòng lặp tự động.
+ */
+function hoiMoAntigravity() {
+  const chiTiet =
+    "Antigravitinho cần Antigravity đang mở để gắn lớp phủ.\n\n" +
+    "Hãy mở Antigravity, rồi bấm “Gắn lại ngay” trong menu khay hệ thống." +
+    (lanLoiCuoi ? `\n\nChi tiết: ${lanLoiCuoi}` : "");
+
+  chanDialog.hoi(
+    () => dialog.showMessageBox({
+      type: "question",
+      title: "Chưa kết nối được Antigravity",
+      message: "Không tìm thấy cổng gỡ lỗi của Antigravity.",
+      detail: chiTiet,
+      buttons: ["Mở Antigravity", "Để sau"],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    }),
+    (kq) => {
+      if (!kq) return;
+      if (kq.response === 0) moAntigravity();
+      else if (kq.response === 1) chanDialog.tat();  // "Để sau" = đừng hỏi nữa
+    }
+  );
 }
 
-// ─── Biểu tượng khay ────────────────────────────────────────────────────────
-function bieuTuong() {
-  const ungVien = [
-    join(__dirname, "icon.png"),
-    join(__dirname, "..", "src", "icon.png"),
-  ];
-  for (const p of ungVien) {
-    if (existsSync(p)) {
-      const img = nativeImage.createFromPath(p);
-      if (!img.isEmpty()) return img;
-    }
+// ─── Khởi động cùng Windows ──────────────────────────────────────────────────
+// Bản đóng gói (.exe): Windows chạy thẳng Antigravitinho.exe.
+// Bản chạy từ mã nguồn: phải truyền thêm đường dẫn app cho electron.exe,
+// nếu không Electron sẽ mở cửa sổ trống thay vì chạy app.
+function dangKhoiDongCung() {
+  try {
+    // Phải truyền đúng path/args thì Windows mới tìm ra mục đã đăng ký.
+    // Gọi không tham số sẽ luôn trả false với app chạy từ mã nguồn.
+    return !!app.getLoginItemSettings({
+      path: process.execPath,
+      args: app.isPackaged ? [] : [app.getAppPath()],
+    }).openAtLogin;
+  } catch {
+    return false;
   }
+}
+
+function datKhoiDongCung(bat) {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!bat,
+      path: process.execPath,
+      args: app.isPackaged ? [] : [app.getAppPath()],
+    });
+    return true;
+  } catch (e) {
+    console.error("[Antigravitinho] lỗi đặt khởi động cùng Windows:", e?.message || e);
+    return false;
+  }
+}
+
+// ─── Khay hệ thống ───────────────────────────────────────────────────────────
+function taoIconTray() {
+  // Windows: 16px cho khay thường, 32px cho màn HiDPI.
+  // Ưu tiên PNG riêng cho khay (đã crop sát mặt) thay vì icon app đầy đủ.
+  const ungVien = [
+    join(ASSETS, "khay-32.png"),
+    join(ASSETS, "khay-16.png"),
+    join(ASSETS, "icon.ico"),
+    join(ASSETS, "icon.png"),
+  ];
+
+  for (const p of ungVien) {
+    if (!existsSync(p)) continue;
+    const img = nativeImage.createFromPath(p);
+    if (img.isEmpty()) continue;
+    // .ico tự chứa nhiều kích thước — không resize để Windows tự chọn
+    if (p.endsWith(".ico")) return img;
+    return img.resize({ width: 16, height: 16, quality: "best" });
+  }
+
+  console.warn("[Antigravitinho] không đọc được icon khay");
   return nativeImage.createEmpty();
 }
 
-// ─── Menu khay ──────────────────────────────────────────────────────────────
 function capNhatTray() {
   if (!tray) return;
+  try {
+    tray.setToolTip(
+      `Antigravitinho — ${dangGanThat ? "đang phủ lên Antigravity" : "chưa gắn"}`
+    );
+    tray.setContextMenu(taoMenuTray());
+  } catch { }
+}
 
-  const trangThai = !agyDangChay
-    ? "⏸ Antigravity chưa chạy"
-    : dangGan
-      ? "✅ Đang gắn vào Antigravity"
-      : "⚠️ Chưa gắn";
+function taoMenuTray() {
+  const themeItems = Object.entries(TEN_THEME).map(([khoa, nhan]) => ({
+    label: nhan,
+    type: "radio",
+    checked: thietLap.chuDe === khoa,
+    click: async () => {
+      thietLap.chuDe = khoa;
+      luuThietLap();
+      if (dangGanThat) await ganLopPhu(true);
+      capNhatTray();
+    },
+  }));
 
-  const menu = Menu.buildFromTemplate([
-    { label: "Antigravitinho", enabled: false },
-    { label: trangThai, enabled: false },
-    ...(loiGanCuoi ? [{ label: `   ${loiGanCuoi.slice(0, 60)}`, enabled: false }] : []),
+  return Menu.buildFromTemplate([
+    {
+      label: dangGanThat ? "✓ Đang phủ lên Antigravity" : "Chưa gắn vào Antigravity",
+      enabled: false,
+    },
     { type: "separator" },
-
     {
-      label: "Giao diện",
-      submenu: Object.entries(TEN_THEME).map(([id, ten]) => ({
-        label: ten,
-        type: "radio",
-        checked: thietLap.chuDe === id,
-        click: async () => {
-          thietLap.chuDe = id;
-          luuThietLap();
-          if (dangGan) await ganNgay();
-          capNhatTray();
-        },
-      })),
-    },
-    {
-      label: "Độ đậm",
-      submenu: [25, 40, 55, 70, 85].map((pt) => ({
-        label: `${pt}%`,
-        type: "radio",
-        checked: Math.round(thietLap.doDam * 100) === pt,
-        click: async () => {
-          thietLap.doDam = pt / 100;
-          luuThietLap();
-          if (dangGan) await ganNgay();
-          capNhatTray();
-        },
-      })),
-    },
-    {
-      label: "Hiện thanh chỉnh giao diện",
-      type: "checkbox",
-      checked: thietLap.hienThanhDieuKhien !== false,
-      click: async (item) => {
-        thietLap.hienThanhDieuKhien = item.checked;
-        luuThietLap();
-        // Gỡ rồi gắn lại để áp dụng ngay
-        await goNgay();
-        await ganNgay();
+      label: dangGanThat ? "Gỡ lớp phủ" : "Gắn vào Antigravity",
+      click: async () => {
+        if (dangGanThat) await goLopPhu();
+        else await ganLopPhu();
       },
     },
-    { type: "separator" },
-    { label: "Gắn lại ngay", click: () => ganNgay(false) },
     {
-      label: "Gỡ lớp phủ",
-      enabled: dangGan,
-      click: () => goNgay(),
+      label: "Gắn lại ngay",
+      click: async () => {
+        lanGanLoi = 0;
+        await goLopPhu();
+        await ganLopPhu();
+      },
     },
-    { type: "separator" },
-
-    { label: "Mở Antigravity", click: () => moAntigravity() },
     {
-      label: "Tự gắn khi Antigravity chạy",
+      label: "Tự động gắn lại",
       type: "checkbox",
       checked: thietLap.tuDongGan,
-      click: (item) => {
-        thietLap.tuDongGan = item.checked;
+      click: (mi) => {
+        thietLap.tuDongGan = mi.checked;
         luuThietLap();
-        capNhatTray();
+        if (mi.checked) batDauTheoDoi();
+        else dungTheoDoi();
       },
     },
+    { type: "separator" },
+    { label: "Giao diện hình nền", enabled: false },
+    ...themeItems,
+    { type: "separator" },
+    { label: "Độ đậm lớp nền", enabled: false },
+    ...[25, 40, 55, 70, 85].map((pt) => ({
+      label: `${pt}%`,
+      type: "radio",
+      checked: Math.round(thietLap.doDam * 100) === pt,
+      click: async () => {
+        thietLap.doDam = pt / 100;
+        luuThietLap();
+        if (dangGanThat) await ganLopPhu(true);
+        capNhatTray();
+      },
+    })),
+    { type: "separator" },
+    { label: "Mở Antigravity", click: () => moAntigravity() },
     {
       label: "Khởi động cùng Windows",
       type: "checkbox",
-      checked: thietLap.khoiDongCung,
-      click: (item) => datKhoiDongCung(item.checked),
+      checked: dangKhoiDongCung(),
+      click: (mi) => {
+        datKhoiDongCung(mi.checked);
+        capNhatTray();
+      },
     },
+    { label: "Mở thư mục dữ liệu", click: () => shell.openPath(DATA_DIR) },
     { type: "separator" },
     {
-      label: "Mở thư mục dữ liệu",
-      click: () => shell.openPath(app.getPath("userData")),
+      label: "Thoát Antigravitinho",
+      click: async () => {
+        dungTheoDoi();
+        await goLopPhu();
+        app.quit();
+      },
     },
-    { label: "Thoát", click: () => { app.isQuitting = true; app.quit(); } },
   ]);
-
-  tray.setToolTip(trangThai.replace(/^[^\s]+\s/, "Antigravitinho — "));
-  tray.setContextMenu(menu);
 }
 
-// ─── Khởi động ──────────────────────────────────────────────────────────────
-// Chỉ một bản chạy tại một thời điểm: bản thứ hai thoát ngay.
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
+// ─── Phím tắt toàn cục ───────────────────────────────────────────────────────
+function dangKyPhimTat() {
+  try {
+    const ok = globalShortcut.register("CommandOrControl+Shift+Space", async () => {
+      if (dangGanThat) await goLopPhu();
+      else await ganLopPhu();
+    });
+    if (!ok) console.warn("[Antigravitinho] không đăng ký được phím tắt");
+  } catch { }
+}
+
+// ─── Khởi động ───────────────────────────────────────────────────────────────
+app.setAppUserModelId("com.antigravitinho.app");
+
+// Chỉ cho phép MỘT instance — nếu không sẽ có nhiều icon khay và nhiều dialog
+const coMotInstance = app.requestSingleInstanceLock();
+
+if (!coMotInstance) {
+  // Instance thứ hai: nhường instance đầu, thoát ngay và im lặng
+  app.exit(0);
 } else {
-  app.on("second-instance", () => capNhatTray());
+  app.on("second-instance", () => {
+    try { tray?.popUpContextMenu(); } catch { }
+  });
+
+  // App sống dưới khay, không thoát khi không có cửa sổ
+  app.on("window-all-closed", () => { });
 
   app.whenReady().then(async () => {
-    // Không hiện cửa sổ nào. Chỉ khay hệ thống.
-    if (app.setLoginItemSettings) {
-      try {
-        app.setLoginItemSettings({ openAtLogin: thietLap.khoiDongCung, args: ["--nen"] });
-      } catch { }
-    }
+    try { app.dock?.hide?.(); } catch { }
 
-    tray = new Tray(bieuTuong());
-    tray.on("click", () => tray.popUpContextMenu());
-    tray.on("double-click", () => moAntigravity());
-    capNhatTray();
+    tray = new Tray(taoIconTray());
+    tray.setToolTip("Antigravitinho");
+    tray.setContextMenu(taoMenuTray());
 
-    agyDangChay = docCongDebug() !== null;
-    if (agyDangChay && thietLap.tuDongGan) {
-      await ganNgay();
-    }
-    batDongHo();
+    tray.on("click", async () => {
+      if (dangGanThat) await goLopPhu();
+      else await ganLopPhu();
+    });
+
+    tray.on("double-click", async () => {
+      lanGanLoi = 0;
+      await goLopPhu();
+      await ganLopPhu();
+    });
+
+    dangKyPhimTat();
+
+    // Gắn ngay nếu AGY đang mở — im lặng, không làm phiền người dùng
+    await ganLopPhu(true);
+    batDauTheoDoi();
+  }).catch((e) => {
+    console.error("[Antigravitinho] lỗi khởi động:", e?.message || e);
+  });
+
+  app.on("will-quit", () => {
+    dungTheoDoi();
+    try { globalShortcut.unregisterAll(); } catch { }
   });
 }
-
-// Thoát bằng menu mới thoát thật; đóng cửa sổ không làm gì vì không có cửa sổ.
-app.on("window-all-closed", (e) => e.preventDefault());
-app.on("before-quit", () => {
-  app.isQuitting = true;
-  if (dongHo) clearInterval(dongHo);
-  dongHo = null;
-});

@@ -261,9 +261,8 @@ export class LagoonEngine {
   }
 
   cells(L, depth, t, glyphs) {
-    // Ở chế độ lớp phủ, KHÔNG tô kín ô và vẽ mảnh hơn hẳn — nếu tô kín,
-    // lớp phủ thành một tấm ảnh đặc che hết chữ của Antigravity.
-    const phu = this.cheDoPhu;
+    // Ở chế độ lớp phủ, giảm độ đục để nội dung app bên dưới vẫn đọc được
+    if (this.cheDoPhu) this.ctx.globalAlpha = 0.42;
     for (let j = 0; j < this.ROWS; j++) {
       for (let i = 0; i < this.COLS; i++) {
         const o = (j * this.COLS + i) * 4, a = L[o + 3];
@@ -273,27 +272,20 @@ export class LagoonEngine {
         if (depth) c = this.mix(c, this.water(x, y), depth);
         const flick = this.hash(i, j, Math.floor(t * 7));
         if (a > 0.5) {
-          if (!phu) {
-            this.ctx.fillStyle = this.rgb(c, depth ? 0.9 : 1);
-            this.ctx.fillRect(x + 1, y + 1, this.CW - 2, this.CH - 2);
-          }
+          this.ctx.fillStyle = this.rgb(c, depth ? 0.9 : 1);
+          this.ctx.fillRect(x + 1, y + 1, this.CW - 2, this.CH - 2);
           if (!glyphs) continue;
           const l = this.lum(c);
           const ch = this.RAMP[Math.max(0, Math.min(this.RAMP.length - 1, Math.floor(1 + l * 5 + flick * 4)))];
-          if (phu) {
-            this.ctx.globalAlpha = 0.32 * (depth ? 0.5 : 1);
-            this.ctx.fillStyle = this.rgb(this.mix(c, [255, 255, 255], 0.45), 1);
-          } else {
-            this.ctx.fillStyle = flick < 0.04 ? this.SPRINK[(flick * 100) | 0] : this.rgb(l < 0.42 ? this.mix(c, [255, 255, 255], 0.62) : this.mix(c, [0, 0, 0], 0.58), depth ? 0.6 : 1);
-          }
+          this.ctx.fillStyle = flick < 0.04 ? this.SPRINK[(flick * 100) | 0] : this.rgb(l < 0.42 ? this.mix(c, [255, 255, 255], 0.62) : this.mix(c, [0, 0, 0], 0.58), depth ? 0.6 : 1);
           this.ctx.fillText(ch, x + this.CW / 2, y + this.CH / 2 + 1);
-          this.ctx.globalAlpha = 1;
-        } else if (!phu) {
+        } else {
           this.ctx.fillStyle = this.rgb(c, Math.min(1, a * 1.6) * (depth ? 0.6 : 1));
           this.ctx.fillText(this.EDGE[(flick * this.EDGE.length) | 0], x + this.CW / 2, y + this.CH / 2 + 1);
         }
       }
     }
+    if (this.cheDoPhu) this.ctx.globalAlpha = 1;
   }
 
   draw(t) {
@@ -374,13 +366,11 @@ export class LagoonEngine {
     });
 
     // Shadows
-    if (!this.cheDoPhu) {
-      this.ctx.fillStyle = "rgba(4,60,84,0.16)";
-      for (let j = 0; j < this.ROWS - 2; j++) {
-        for (let i = 0; i < this.COLS - 2; i++) {
-          const a = main[(j * this.COLS + i) * 4 + 3];
-          if (a > 0.3) this.ctx.fillRect((i + 2) * this.CW, (j + 2) * this.CH, this.CW, this.CH);
-        }
+    this.ctx.fillStyle = "rgba(4,60,84,0.16)";
+    for (let j = 0; j < this.ROWS - 2; j++) {
+      for (let i = 0; i < this.COLS - 2; i++) {
+        const a = main[(j * this.COLS + i) * 4 + 3];
+        if (a > 0.3) this.ctx.fillRect((i + 2) * this.CW, (j + 2) * this.CH, this.CW, this.CH);
       }
     }
 

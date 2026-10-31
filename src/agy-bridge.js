@@ -189,25 +189,71 @@ async function layDanhSachTarget(port) {
 }
 
 function laTrangAgy(t) {
-  return t.type === "page" && typeof t.url === "string" && t.url.startsWith("https://127.0.0.1:");
+  if (t.type !== "page" && t.type !== "webview") return false;
+  if (!t.url) return false;
+  // Bỏ DevTools, trang trống, tiện ích nội bộ của Electron
+  if (t.url.startsWith("devtools://")) return false;
+  if (t.url === "about:blank") return false;
+  if (t.url.startsWith("chrome-extension://")) return false;
+  return true;
+}
+
+/** Chọn target tốt nhất: ưu tiên UI chính của AGY, bỏ overlay tải trang. */
+function chonTargetPhuHop(ds) {
+  const ungVien = ds.filter(laTrangAgy);
+  if (!ungVien.length) return null;
+
+  // Ưu tiên URL local của AGY (bản UI chính)
+  const uuTien = [
+    (t) => t.url.startsWith("https://127.0.0.1:"),
+    (t) => t.url.includes("/index.html"),
+    (t) => !/splash|loading/i.test(t.title || ""),
+  ];
+  for (const dieuKien of uuTien) {
+    const tim = ungVien.find(dieuKien);
+    if (tim) return tim;
+  }
+  return ungVien[0];
 }
 
 /**
  * Mở phiên CDP tới cửa sổ Antigravity thật.
- * @returns {Promise<{phien: PhienCdp, target: object} | null>}
+ * @returns {Promise<{phien: PhienCdp, target: object, soTarget: number} | null>}
  */
 export async function moPhienAgy() {
   const port = docCongDebug();
   if (!port) return null;
   try {
     const ds = await layDanhSachTarget(port);
-    const target = ds.find(laTrangAgy);
+    const target = chonTargetPhuHop(ds);
     if (!target?.webSocketDebuggerUrl) return null;
 
     const u = new URL(target.webSocketDebuggerUrl);
     const ws = await WsToiThieu.mo(u.hostname, Number(u.port), u.pathname + u.search);
-    return { phien: new PhienCdp(ws), target };
+    return { phien: new PhienCdp(ws), target, soTarget: ds.length };
   } catch { return null; }
+}
+
+/** Chẩn đoán nhanh: cổng debug và số target đang có. */
+export async function chanDoan() {
+  const port = docCongDebug();
+  if (!port) {
+    return { ok: false, loi: "Không thấy file DevToolsActivePort — Antigravity chưa chạy." };
+  }
+  try {
+    const ds = await layDanhSachTarget(port);
+    const target = chonTargetPhuHop(ds);
+    return {
+      ok: !!target,
+      port,
+      soTarget: ds.length,
+      url: target?.url || null,
+      tieuDe: target?.title || null,
+      loi: target ? null : "Antigravity đang chạy nhưng chưa mở cửa sổ nào.",
+    };
+  } catch (e) {
+    return { ok: false, port, loi: `Cổng ${port} không phản hồi: ${e.message}` };
+  }
 }
 
 /** Chèn lớp phủ vào AGY. Trả về true nếu thành công. */
@@ -231,57 +277,39 @@ export async function ganVaoAgy(ma) {
   }
 }
 
-/** Gỡ lớp phủ khỏi AGY (không đặt cờ "đã tắt" — lần sau vẫn gắn lại được). */
-export async function goKhoiAgy() {
-  const ma = `(() => {
-    const el = document.getElementById("__antigravitinho");
-    if (el) { el.__song = false; el.remove(); }
-    document.getElementById("__antigravitinho-css")?.remove();
-    document.getElementById("__antigravitinho-thanh")?.remove();
-    return "da-go";
-  })()`;
-  const r = await ganVaoAgy(ma);
-  return r.ok;
-}
-
-/** Xoá cờ "người dùng đã tắt" để lần gắn sau không bị chặn. */
-export async function xoaCoTat() {
-  const ma = `(() => {
-    delete window.__antigravitinhoTat;
-    try { sessionStorage.removeItem("__antigravitinhoTat"); } catch { }
-    return "da-xoa-co";
-  })()`;
-  const r = await ganVaoAgy(ma);
-  return r.ok;
-}
-
 /**
- * Trạng thái lớp phủ trong AGY.
- * Trả về { co, tat, ketNoi, phienBan }
- *   co       — lớp phủ đang có trong DOM
- *   tat      — người dùng đã chủ động tắt (đừng tự chèn lại)
- *   phienBan — số phiên bản code đang chạy trong AGY (0 = không rõ)
+ * Mã dọn lớp phủ — dùng chung cho app và cho test.
+ *
+ * Thứ tự rất quan trọng: phải DỪNG vòng lặp (mascot + engine nền) TRƯỚC khi
+ * tháo DOM. Nếu chỉ remove() phần tử, setInterval 24fps của hình nền và 30fps
+ * của mascot vẫn chạy tiếp trên canvas đã rời khỏi DOM. Gắn/gỡ vài lần là có
+ * vài bộ vòng lặp chồng nhau, cả cửa sổ Antigravity trở nên lag.
  */
-export async function trangThaiLopPhu() {
-  const ma = `(() => {
-    const el = document.getElementById("__antigravitinho");
-    const co = !!(el && el.__song);
-    let tat = !!window.__antigravitinhoTat;
-    try { if (sessionStorage.getItem("__antigravitinhoTat") === "1") tat = true; } catch { }
-    return JSON.stringify({ co, tat, pb: (el && el.__phienBan) || 0 });
-  })()`;
-  const r = await ganVaoAgy(ma);
-  if (!r.ok) return { co: false, tat: false, ketNoi: false, phienBan: 0 };
-  try {
-    const d = JSON.parse(r.ketQua);
-    return { co: !!d.co, tat: !!d.tat, ketNoi: true, phienBan: Number(d.pb) || 0 };
-  } catch {
-    return { co: false, tat: false, ketNoi: true, phienBan: 0 };
+export const MA_GO_LOP_PHU = `(() => {
+  const el = document.getElementById("__antigravitinho");
+  const box = el || window.__antigravitinhoBox;
+  if (box) {
+    try { box.__mascot?.dung?.(); } catch (e) { }
+    try { box.__huy?.(); } catch (e) { }
+    try { box.remove?.(); } catch (e) { }
   }
+  document.getElementById("__antigravitinho-css")?.remove();
+  window.__antigravitinhoBox = null;
+  return "da-go";
+})()`;
+
+/** Gỡ lớp phủ khỏi AGY. */
+export async function goKhoiAgy() {
+  const r = await ganVaoAgy(MA_GO_LOP_PHU);
+  return r.ok;
 }
 
 /** Kiểm tra lớp phủ còn tồn tại trong DOM của AGY không. */
 export async function dangCoLopPhu() {
-  const tt = await trangThaiLopPhu();
-  return tt.co;
+  const ma = `(() => {
+    const el = document.getElementById("__antigravitinho");
+    return !!(el && el.__song && document.getElementById("__antigravitinho-css"));
+  })()`;
+  const r = await ganVaoAgy(ma);
+  return r.ok ? !!r.ketQua : false;
 }

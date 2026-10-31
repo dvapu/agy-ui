@@ -1,6 +1,7 @@
-﻿// Render 6 theme ra áº£nh PNG Ä‘á»ƒ kiá»ƒm tra báº±ng máº¯t (dÃ¹ng cá»­a sá»• áº©n tháº­t).
+﻿// Render 6 theme ra ảnh PNG để kiểm tra bằng mắt (dùng cửa sổ ẩn thật).
 //
-// Cháº¡y: npx electron tools/render-themes.js
+// Chạy: npx electron tools/render-themes.js
+// Ảnh ra: dist-anh/<theme>.png
 import { app, BrowserWindow } from "electron";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
@@ -24,7 +25,7 @@ const html = `<!DOCTYPE html><html><body style="margin:0;background:#000">
 
 app.whenReady().then(async () => {
   const tam = join(RA, "_test.html");
-  writeFileSync(tam, html);
+  writeFileSync(tam, html, "utf-8");
 
   const win = new BrowserWindow({
     width: 1400,
@@ -35,13 +36,17 @@ app.whenReady().then(async () => {
 
   await win.loadFile(tam);
 
-  // Äá»£i module náº¡p xong (tá»‘i Ä‘a 10s)
+  // Đợi module nạp xong (tối đa 10s)
   for (let i = 0; i < 40; i++) {
     const ok = await win.webContents.executeJavaScript("!!window.ThemesEngine").catch(() => false);
     if (ok) break;
     await new Promise((r) => setTimeout(r, 250));
   }
-  console.log("Náº¡p module:", await win.webContents.executeJavaScript("!!window.ThemesEngine").catch((e) => e.message));
+
+  const napDuoc = await win.webContents
+    .executeJavaScript("!!window.ThemesEngine")
+    .catch((e) => e.message);
+  console.log("Nạp module:", napDuoc);
 
   for (const theme of THEME) {
     try {
@@ -66,11 +71,9 @@ app.whenReady().then(async () => {
       writeFileSync(join(RA, theme + ".png"), buf);
       console.log(`  ${theme.padEnd(10)} ${(buf.length / 1024).toFixed(0)} KB`);
     } catch (e) {
-      console.log(`  ${theme.padEnd(10)} Lá»–I: ${e.message}`);
+      console.log(`  ${theme.padEnd(10)} LỖI: ${e.message}`);
     }
   }
 
   app.exit(0);
 });
-
-

@@ -8,10 +8,12 @@
 ## 0. Đây là cái gì
 
 **Antigravitinho** = app Electron cho Windows, gắn **hình nền ASCII động + linh vật
-rùa Honu** lên cửa sổ **Antigravity (AGY)** thật.
+chữ A** lên cửa sổ **Antigravity (AGY)** thật.
 
-Thư mục: `C:\Users\b\.gemini\antigravity\scratch\agy-ui`
+Thư mục: `C:\Users\b\.gemini\antigravity\scratch\antigravitinho`
 Repo: `https://github.com/dvapu/agy-ui`
+
+**Không có cửa sổ chat riêng.** App nằm dưới khay hệ thống và vẽ vào chính AGY.
 
 ---
 
@@ -24,135 +26,133 @@ Repo: `https://github.com/dvapu/agy-ui`
    - `C:\Users\b\.gemini\antigravity\brain\**`
    - `C:\Users\b\AppData\Roaming\Antigravity\**`
 
-   App này chỉ **đọc** `%APPDATA%\Antigravity\DevToolsActivePort` (1 dòng chứa số
+   App chỉ **đọc** `%APPDATA%\Antigravity\DevToolsActivePort` (một dòng chứa số
    cổng) và **ghi DOM** vào trang AGY. Không có gì khác.
 
 2. **Không được gọi API nội bộ của AGY.** Chỉ dùng Chrome DevTools Protocol
-   (`Runtime.evaluate`) để chèn DOM. Đó là cách duy nhất được phép.
+   (`Runtime.evaluate`) để chèn DOM.
 
 3. **Không deploy lên NAS** (`192.168.1.200`) trừ khi người dùng nói rõ.
 
 4. **Không xoá file** của người dùng khi chưa hỏi. Comment tiếng Việt, giữ
    nguyên văn phong hiện có.
 
-5. **Chạy `npm test` trước khi báo xong.** Không được nói "đã hoạt động" khi
-   chưa chạy lệnh kiểm tra.
+5. **Chạy test trước khi báo xong.** Không được nói "đã hoạt động" khi chưa
+   chạy lệnh kiểm tra.
+
+6. **Đừng dùng PowerShell để sửa file có tiếng Việt.** `-replace` +
+   `Set-Content` làm hỏng encoding thành `EF BF BD`. Dùng công cụ sửa file.
 
 ---
 
 ## 2. Kiến trúc trong 30 giây
 
 ```
-Electron app (cửa sổ chat riêng)
-        │
-        │  src/main.js  ── IPC ──► src/agy-bridge.js ──CDP──► Antigravity thật
-        │                              │
-        │                              └─ src/injector.js (sinh code chèn)
-        │
-        └── src/renderer/index.html + app.js + themes-engine.js + lagoon-engine.js + mascot.js
+Khay hệ thống (Tray)
+      │
+      │  src/main.js ──► src/agy-bridge.js ──CDP WebSocket──► Antigravity thật
+      │                        │
+      │                        └─ src/injector.js (sinh một chuỗi JS tự chứa)
+      │                                 │
+      │                                 └─ gộp 3 engine:
+      │                                      lagoon-engine.js + themes-engine.js + mascot-a.js
+      │
+      └── không có cửa sổ nào. Không preload, không IPC.
 ```
 
-- `src/main.js` — tiến trình chính. Tạo cửa sổ chat, xử lý IPC, gọi AI.
+- `src/main.js` — tiến trình chính: khay, menu, phím tắt, vòng theo dõi 3 giây,
+  single-instance lock, `app.setLoginItemSettings` cho "khởi động cùng Windows".
 - `src/agy-bridge.js` — **cầu CDP tự viết** (không dùng thư viện ngoài). Đọc cổng
-  debug từ `DevToolsActivePort`, mở WebSocket tay, gửi `Runtime.evaluate`.
-- `src/injector.js` — sinh một chuỗi JS tự chứa (gộp `lagoon-engine.js` +
-  `themes-engine.js` + `mascot.js`) để chèn vào AGY.
-- `src/renderer/*` — UI của cửa sổ chat + toàn bộ engine vẽ ASCII.
-
-### Hai chế độ hiển thị (đừng lẫn lộn)
-
-| Chế độ | Cửa sổ | Dính vào AGY? | Dùng khi nào |
-|---|---|---|---|
-| **Gắn vào AGY** (chính) | Không tạo cửa sổ mới — chèn DOM vào AGY | ✅ Có. Di chuyển/resize/thu nhỏ đều theo | Dùng hàng ngày |
-| **Overlay nổi** (phụ) | Cửa sổ trong suốt `alwaysOnTop` | ❌ Không | Khi muốn phủ lên app khác |
-
-Nút trên thanh tiêu đề: **🐢 Gắn vào Antigravity** → chế độ chính.
-
----
-
-## 3. Vì sao Claudinho đè lên Claude Code được mà bản cũ không đè lên AGY
-
-Đây là câu hỏi gốc của dự án. Trả lời ngắn:
-
-- **Claudinho** không "đè" Claude Code. Nó **thay thế** Claude Code: nó gọi
-  `@anthropic-ai/claude-agent-sdk` để chạy agent, rồi tự vẽ UI. Claude Code
-  không có cửa sổ riêng để đè.
-- **Antigravity** thì có cửa sổ riêng (Electron). Muốn có hình nền thì phải chèn
-  **vào bên trong** cửa sổ đó, hoặc phủ một cửa sổ trong suốt lên trên.
-
-Bản đầu tiên chỉ làm cách 2 (cửa sổ nổi) → lệch, che nội dung, mở app là mất DB
-cảm giác. Cách đúng là cách 1: **chèn DOM vào chính AGY**. Đó là `agy-bridge.js`.
+  debug, mở WebSocket tay, gọi `Runtime.evaluate`.
+- `src/injector.js` — sinh chuỗi JS tự chứa để chèn vào AGY. Đây là nơi duy nhất
+  quyết định lớp phủ trông thế nào.
+- `src/renderer/*` — các engine vẽ (được nhúng vào chuỗi chèn, **không** nạp bằng
+  `<script>`).
 
 ### Bẫy kỹ thuật đã gặp (đừng lặp lại)
 
-**`requestAnimationFrame` KHÔNG chạy khi cửa sổ bị che.**
-Khi AGY bị cửa sổ khác che, `document.hidden === true` và Chromium **dừng hẳn**
-rAF → hình nền đứng im. Đã đo được: rAF = 0 tick/1.6s, còn `setInterval` = 2 tick.
+1. **`requestAnimationFrame` KHÔNG chạy khi cửa sổ bị che.**
+   Chromium dừng hẳn rAF khi `document.hidden === true`. Vì vậy engine phải dùng
+   `startBangInterval()` / `batDauBangInterval()`.
 
-→ Khi chèn vào AGY **phải dùng `startBangInterval()` / `renderBangInterval()`**,
-không dùng `start()`.
+2. **Gỡ lớp phủ phải DỪNG vòng lặp trước khi tháo DOM.**
+   Chỉ `remove()` thì `setInterval` 24fps của hình nền và 30fps của mascot vẫn
+   chạy tiếp trên canvas đã rời DOM. Gắn/gỡ vài lần là chúng chồng nhau, cả
+   Antigravity lag. Vì vậy có `box.__huy()` — nó gọi `engine.stop()`,
+   `mv.dung()`, gỡ listener trên `window`, rồi mới tháo DOM.
+   Đo thật: 8.23s CPU/5s → 0.80s CPU/5s sau khi sửa.
+
+3. **Listener trên `window` không tự chết khi tháo DOM.** Luôn ghi vào sổ
+   (`boNghe`) và gỡ trong `__huy()`.
+
+4. **Cổng CDP đổi mỗi lần AGY khởi động** (2555, 7634, …). Luôn đọc lại
+   `DevToolsActivePort`, không hard-code.
 
 ---
 
-## 4. Việc cần làm (đọc `docs/TASKS.md`)
+## 3. Cấu trúc thư mục
 
-Danh sách task chưa xong nằm ở `docs/TASKS.md`, mỗi task ghi rõ:
-- File nào sửa
-- Sửa cái gì (chép nguyên đoạn code mẫu)
-- Cách kiểm tra đã xong
-
-**Làm theo thứ tự T1 → T2 → ... Không nhảy cóc.**
+```
+antigravitinho/
+├── Antigravitinho.bat / .vbs    # chạy từ mã nguồn
+├── assets/                      # icon, logo chữ A
+├── src/
+│   ├── main.js
+│   ├── agy-bridge.js
+│   ├── injector.js
+│   ├── chan-dialog.js           # chặn spam hộp thoại
+│   └── renderer/
+│       ├── mascot-a.js
+│       ├── themes-engine.js
+│       └── lagoon-engine.js
+├── tools/                       # test + script sinh icon, shortcut
+├── test/syntax.test.js          # test cú pháp + hợp đồng module
+├── docs/                        # tài liệu (xem docs/README.md)
+└── dist/                        # sản phẩm đóng gói (không commit)
+```
 
 ---
 
-## 5. Cách chạy & kiểm tra
+## 4. Cách chạy & kiểm tra
 
 ```powershell
-cd C:\Users\b\.gemini\antigravity\scratch\agy-ui
+cd C:\Users\b\.gemini\antigravity\scratch\antigravitinho
 npm install          # lần đầu
-npm start            # mở app
-npm test             # BẮT BUỘC chạy trước khi báo xong
+npm start            # chạy app
+npm test             # test nhanh (cú pháp + hợp đồng + chặn dialog)
 ```
 
-Kiểm tra chế độ gắn thật (cần AGY đang mở):
+Test đầy đủ (cần Electron):
 
 ```powershell
-node test/gan-agy.test.js
+.\node_modules\electron\dist\electron.exe tools\test-inject.mjs     # 19 muc
+.\node_modules\electron\dist\electron.exe tools\test-gan-lai.mjs    # 28 muc
+.\node_modules\electron\dist\electron.exe tools\test-tuong-tac.mjs  # 13 muc
+.\node_modules\electron\dist\electron.exe tools\test-khay.mjs       # 13 muc
 ```
 
-Nếu báo `Không kết nối được Antigravity`: mở app Antigravity trước, rồi chạy lại.
-AGY chỉ mở cổng debug khi đang chạy.
+Kiểm tra kết nối tới AGY thật (cần AGY đang mở):
+
+```powershell
+node tools/kiem-tra-cong.js
+```
 
 ---
 
-## 6. Hợp đồng IPC (đừng đổi tên hàm)
-
-Mọi thứ renderer gọi đều qua `window.agy.*`, khai báo ở `src/preload.cjs`.
-Danh sách đầy đủ: `docs/API-IPC.md`.
-
-**Nếu thêm hàm mới:**
-1. Thêm `ipcMain.handle("ten-khong-dau", ...)` trong `src/main.js`
-2. Thêm `tenKhongDau: () => ipcRenderer.invoke("ten-khong-dau")` trong `src/preload.cjs`
-3. Ghi vào `docs/API-IPC.md`
-
-Tên kênh: **gạch nối, không dấu**. Tên hàm JS: **camelCase, không dấu**.
-
----
-
-## 7. Phong cách code
+## 5. Phong cách code
 
 - Chuỗi hiển thị cho người dùng: **tiếng Việt**.
 - Tên biến/hàm: tiếng Việt không dấu (`chuDe`, `doDam`, `ganVaoAgy`) hoặc
   tiếng Anh — nhưng **phải nhất quán trong một file**.
 - Comment: tiếng Việt, giải thích **vì sao**, không phải "cái này làm gì".
 - Không thêm thư viện ngoài nếu tự viết được < 200 dòng (xem `agy-bridge.js`).
+  Hiện `dependencies` để trống.
 
 ---
 
-## 8. Khi bị kẹt
+## 6. Khi bị kẹt
 
-1. Đọc `docs/KIEN-TRUC.md` — giải thích chi tiết luồng dữ liệu.
-2. Chạy `node test/syntax.test.js` — bắt lỗi cú pháp.
-3. Kiểm tra AGY có đang chạy không: `Get-Process Antigravity`.
-4. Kiểm tra cổng: `Get-Content "$env:APPDATA\Antigravity\DevToolsActivePort"`.
-5. Nếu vẫn kẹt: **dừng lại và báo người dùng**, đừng đoán mò rồi sửa DB.
+1. Chạy `npm test` — bắt lỗi cú pháp và lệch hợp đồng module.
+2. Kiểm tra AGY có đang chạy không: `Get-Process Antigravity`.
+3. Kiểm tra cổng: `Get-Content "$env:APPDATA\Antigravity\DevToolsActivePort"`.
+4. Nếu vẫn kẹt: **dừng lại và báo người dùng**, đừng đoán mò rồi sửa DB.

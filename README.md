@@ -1,241 +1,213 @@
-# Antigravitinho
+# Antigravitinho 🅰️✨
 
-**Live ASCII wallpaper + Honu mascot, injected straight into the real Antigravity window.**
-**Hình nền ASCII sống động + linh vật rùa Honu, chèn thẳng vào cửa sổ Antigravity thật.**
+**Antigravitinho** là lớp phủ (overlay) sống động cho **Antigravity** thật trên Windows.
+Nó không thay thế Antigravity — nó **vẽ lên trên** cửa sổ Antigravity đang chạy.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Electron](https://img.shields.io/badge/Electron-45-47848F?logo=electron)](https://www.electronjs.org/)
-[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)](https://www.microsoft.com/windows)
-[![Tests](https://img.shields.io/badge/tests-6%20passing-brightgreen)](test)
+Nhờ vậy bạn giữ nguyên 100%: database dự án, toàn bộ lịch sử hội thoại, subagent và
+mọi slash command (`/code`, `/boost`, `/browser`, …) của Antigravity.
+
+> Cảm hứng từ [Claudinho](https://github.com/Lu1sR0/claudinho) — nhưng dành cho Antigravity.
 
 ---
 
-## What this is / Đây là gì
-
-A tiny tray app that draws an animated ASCII landscape **inside** your
-Antigravity window. No second chat app. No database access. Antigravity stays
-Antigravity — your conversations, `/code`, agents and MCP servers keep working.
-
-Một app tray nhỏ, vẽ phong cảnh ASCII động **bên trong** cửa sổ Antigravity.
-Không có app chat thứ hai. Không đụng database. Antigravity vẫn là Antigravity —
-hội thoại, `/code`, agent và MCP của bạn chạy y như cũ.
+## 📍 Vị trí mã nguồn
 
 ```
-┌─────────────────────────────────────────────┐
-│  Antigravity (unchanged, still fully usable)│
-│  ┌───────────────────────────────────────┐  │
-│  │  ← injected layer: ASCII art + Honu   │  │
-│  │    (pointer-events: none)             │  │
-│  └───────────────────────────────────────┘  │
-└─────────────────────────────────────────────┘
-             ▲
-             │ Chrome DevTools Protocol
-             │ (Runtime.evaluate only)
-        ┌────┴────────────────┐
-        │  Antigravitinho     │  ← tray app, no window
-        └─────────────────────┘
+C:\Users\b\.gemini\antigravity\scratch\antigravitinho
 ```
 
 ---
 
-## Why not just an always-on-top window? / Sao không phủ cửa sổ nổi?
+## 🧠 Cách hoạt động
 
-Because it lies. An always-on-top transparent window drifts out of alignment
-the moment you move or resize Antigravity, and it dims the text behind it.
+Antigravity là ứng dụng Electron và bật sẵn cổng gỡ lỗi nội bộ, ghi tại:
 
-**This app injects DOM into Antigravity itself.** The layer is a child of AGY's
-page, so it moves, resizes and minimises together with the window. Zero drift.
+```
+%APPDATA%\Antigravity\DevToolsActivePort
+```
 
-Bởi vì nó nói dối. Cửa sổ trong suốt luôn trên cùng sẽ lệch ngay khi bạn di
-chuyển hay resize Antigravity, và nó làm tối chữ phía sau.
+Antigravitinho đọc cổng đó, mở một phiên Chrome DevTools Protocol (CDP) bằng
+WebSocket thuần Node.js (không thêm dependency), rồi **chèn thẳng một lớp DOM**
+vào chính trang của Antigravity.
 
-**App này chèn DOM vào chính Antigravity.** Lớp phủ là con của trang AGY, nên
-nó di chuyển, resize, thu nhỏ cùng cửa sổ. Không bao giờ lệch.
+Vì lớp này nằm *trong* trang AGY nên nó:
+
+- Dính chặt cửa sổ: di chuyển, đổi kích thước, thu nhỏ, chuyển workspace đều theo
+- Không che code: dùng `globalCompositeOperation = "screen"` và alpha thấp
+- Không bao giờ ghi vào dữ liệu của AGY
+
+Nếu AGY điều hướng SPA làm mất DOM, app tự gắn lại sau mỗi 3 giây.
 
 ---
 
-## Install / Cài đặt
+## 🅰️ Mascot: chữ A sống động
+
+Logo là **chữ A chính thức của Antigravity** (vector lấy từ `app.asar` của bản cài,
+gradient lấy từ ảnh logo gốc), được thổi hồn thành một nhân vật:
+
+- **Mắt** nhìn theo con trỏ chuột, chớp mắt ngẫu nhiên
+- **Thở** nhấp nhô, **nghiêng người** theo hướng chuột
+- **Bấm** → nhảy lên, bắn tia sáng, nói một câu tiếng Việt
+- **Kéo thả** → treo lủng lẳng theo chuột, thả ra thì rơi, chạm đất bẹp rồi bật dậy
+- **Đi dạo** loanh quanh gần chỗ đậu rồi tự về
+- **Rảnh lâu** → ngủ, mắt nhắm, bong bóng "z z z"
+- **Rung nhẹ** khi Antigravity đang xử lý
+
+Vật lý dùng **tích phân bước cố định** nên chạy đúng ở mọi frame rate, kể cả khi
+Windows bóp nhịp cửa sổ bị che khuất.
+
+---
+
+## 🎨 6 giao diện hình nền động
+
+1. 🐢 **Đầm Phá Hawaii** — rùa Honu, cá đuối, cá heo, cá voi, hoa dâm bụt
+2. 🎏 **Hồ Cá Koi** — lá sen, hoa súng, bầy Koi uốn lượn
+3. 🌌 **Dải Ngân Hà** — tinh vân, 280+ vì sao
+4. 💻 **Ma Trận Code** — mưa Katakana & hex neon
+5. 🔥 **Lò Sưởi Ấm** — lửa bập bùng, tàn tro bay
+6. 🌧️ **Đêm Mưa** — mưa xiên, đèn neon phản chiếu
+
+---
+
+## 🚀 Chạy app
+
+Có ba cách, chọn cách nào cũng được:
+
+| Cách | Việc cần làm |
+| --- | --- |
+| **Bộ cài (khuyến nghị)** | Chạy `dist\Antigravitinho-Setup.exe`, bấm Next. Có sẵn shortcut Desktop + Start Menu. |
+| **Shortcut sẵn** | Bấm `Antigravitinho` ngoài Desktop (tạo bằng `npm run shortcut`). |
+| **Từ mã nguồn** | Nháy đúp `Antigravitinho.bat`, hoặc `Antigravitinho.vbs` nếu không muốn thấy cửa sổ đen. |
+
+Bản chạy từ mã nguồn cần `node_modules` (chạy `npm install` một lần). Bản cài đặt
+thì không — nó đã đóng gói sẵn mọi thứ.
+
+Không có cửa sổ chat nào mở ra: app nằm ngay dưới khay hệ thống.
+
+---
+
+## ⚙️ Sử dụng
+
+App chạy nền dưới **khay hệ thống**. Không có cửa sổ chat riêng.
+
+**Icon khay** là ảnh chân dung pixel-art (cắt tròn), hiển thị cả khi app thu nhỏ
+— bấm vào đó để gắn/gỡ lớp phủ mà không cần mở bất cứ cửa sổ nào.
+
+| Thao tác | Tác dụng |
+| --- | --- |
+| **Click icon khay** | Gắn / gỡ lớp phủ |
+| **Double-click icon khay** | Gắn lại ngay |
+| **Chuột phải icon khay** | Menu: đổi giao diện, độ đậm, tự động gắn, khởi động cùng Windows, thoát |
+| **Ctrl + Shift + Space** | Ẩn / hiện lớp phủ từ bất kỳ đâu |
+| **Rê chuột góc dưới-phải** | Hiện dock nhỏ để đổi nhanh giao diện |
+
+App **chỉ cho phép một instance**: mở lần thứ hai sẽ không tạo thêm icon khay
+hay hộp thoại nào.
+
+Muốn app tự chạy mỗi lần bật máy: chuột phải icon khay → **Khởi động cùng Windows**.
+
+### Gỡ rồi gắn lại nhiều lần vẫn mượt
+
+Lớp phủ chạy hai vòng lặp: hình nền 24fps và mascot 30fps. Khi gỡ, app **dừng
+cả hai trước** rồi mới tháo DOM (`box.__huy()`), và gỡ luôn listener gắn trên
+`window`. Nếu chỉ `remove()` phần tử, các vòng lặp vẫn vẽ tiếp vào canvas đã
+rời DOM — gắn/gỡ vài lần là chúng chồng lên nhau và cả Antigravity lag.
+
+Đo trên máy thật: trước khi sửa **8.23 giây CPU / 5 giây**, sau khi sửa
+**0.80 giây CPU / 5 giây** (giảm 10 lần). Test hồi quy `tools/test-gan-lai.mjs`
+gắn/gỡ 5 lần liên tiếp và đòi số vòng lặp luôn đúng bằng 2.
+
+---
+
+## 🛠️ Cấu trúc
+
+```
+antigravitinho/
+├── Antigravitinho.bat           # chạy từ mã nguồn (có cửa sổ đen thoáng qua)
+├── Antigravitinho.vbs           # chạy từ mã nguồn, ẩn hoàn toàn
+├── assets/                      #
+│   ├── agy-a.svg                # chữ A vector chính thức + gradient gốc (mascot)
+│   ├── agy-a.png                # 256px trong suốt (dùng cho mascot)
+│   ├── icon.png / icon.ico      # icon app & bộ cài (512 → 16, cắt tròn)
+│   ├── khay-16.png              # icon khay hệ thống, màn thường
+│   └── khay-32.png              # icon khay hệ thống, màn HiDPI
+├── src/
+│   ├── main.js                  # Electron main: khay, single-instance, vòng theo dõi
+│   ├── agy-bridge.js            # cầu CDP tới Antigravity (WebSocket thuần)
+│   ├── injector.js              # sinh script tự chứa để chèn vào DOM AGY
+│   ├── chan-dialog.js           # bộ chặn spam hộp thoại
+│   └── renderer/
+│       ├── mascot-a.js          # mascot chữ A (vật lý, tương tác, cảm xúc)
+│       ├── themes-engine.js     # 6 theme hình nền
+│       └── lagoon-engine.js     # động cơ ASCII Honu Lagoon
+└── tools/
+    ├── tao-icon-agy.mjs         # sinh lại bộ icon chữ A từ path vector + gradient
+    ├── tao-icon-khay.mjs        # sinh icon khay từ ảnh chân dung (cắt tròn + crop)
+    ├── tao-shortcut.ps1         # tạo / gỡ shortcut Desktop + Start Menu
+    ├── test-chan-dialog.mjs     # test bộ chặn spam (node --test)
+    ├── test-tuong-tac.mjs       # test tương tác mascot (13 mục)
+    ├── test-inject.mjs          # test chèn/gỡ lớp phủ (19 mục)
+    ├── test-gan-lai.mjs         # test gắn/gỡ nhiều lần không rò rỉ vòng lặp (28 mục)
+    ├── test-khay.mjs            # test icon khay nạp được vào Tray
+    ├── preview-mascot.html      # xem mascot ở kích thước lớn
+    └── preview-khay.html        # xem icon khay trên nền tối/sáng
+```
+
+---
+
+## 🔍 Kiểm thử
 
 ```powershell
-git clone https://github.com/dvapu/agy-ui
-cd agy-ui
-npm install
-npm start
+cd "C:\Users\b\.gemini\antigravity\scratch\antigravitinho"
+
+# Test bộ chặn spam hộp thoại (nhanh, thuần Node) — 8 mục
+node --test tools/test-chan-dialog.mjs
+
+# Test tương tác mascot — 13 mục
+.\node_modules\electron\dist\electron.exe tools\test-tuong-tac.mjs
+
+# Test chèn / gỡ lớp phủ — 19 mục
+.\node_modules\electron\dist\electron.exe tools\test-inject.mjs
+
+# Test icon khay — 13 mục
+.\node_modules\electron\dist\electron.exe tools\test-khay.mjs
+
+# Test gắn/gỡ nhiều lần — 28 mục (chống rò rỉ vòng lặp)
+.\node_modules\electron\dist\electron.exe tools\test-gan-lai.mjs
 ```
 
-`npm start` opens **no window**. Only a tray icon. Right-click it → **Gắn lại ngay**.
+Tổng cộng **81 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
 
-`npm start` **không mở cửa sổ nào**. Chỉ có icon ở khay. Chuột phải → **Gắn lại ngay**.
+---
 
-### Build installer / Đóng gói
+## 📦 Đóng gói
 
 ```powershell
-npm run dist
-# -> dist/Antigravitinho-Setup.exe
+npm start              # chạy trực tiếp từ mã nguồn
+npm run shortcut       # tạo shortcut ngoài Desktop + Start Menu
+npm run shortcut:go    # gỡ shortcut
+npm run dist           # tạo bộ cài dist\Antigravitinho-Setup.exe
 ```
 
----
+Bộ cài dùng NSIS, không cần quyền admin, cho phép chọn thư mục cài, tự tạo
+shortcut Desktop + Start Menu và có mục gỡ cài trong Control Panel.
 
-## Themes / Giao diện
+Muốn bản chạy thẳng không cần cài: dùng thư mục `dist\win-unpacked\`, chạy
+`Antigravitinho.exe`.
 
-Six animated ASCII scenes. Each is drawn as vector art, then **quantised into a
-character grid** — that's where the texture comes from.
-
-Sáu cảnh ASCII động. Mỗi cảnh vẽ bằng vector rồi **lượng tử hoá thành lưới ký
-tự** — đó là nguồn gốc của chất liệu.
-
-| | Theme | Description / Mô tả |
-|---|---|---|
-| 🐢 | `lagoon` | Hawaiian lagoon — sea turtles, manta rays, dolphins, whales, hibiscus |
-| 🎏 | `koi` | Japanese koi pond — lotus leaves, blossoms, drifting petals |
-| 🌌 | `galaxy` | Spiral galaxy — two arms, three star layers, meteors |
-| 💻 | `matrix` | Digital rain — katakana + hex, glowing heads |
-| 🔥 | `fireplace` | Cozy hearth — separated flame tongues, embers, smoke |
-| 🌧️ | `rain` | Cyber city at night — skyline, neon, water ripples |
-
-Switch from the tray menu, or from the control bar that floats above
-Antigravity's prompt box.
-
-Đổi từ menu khay, hoặc từ thanh điều khiển nổi ngay trên ô prompt của Antigravity.
-
----
-
-## Control bar / Thanh điều khiển
-
-A slim bar sits right above Antigravity's prompt input:
-
-Một thanh mảnh nằm ngay trên ô soạn tin của Antigravity:
-
-```
-[▾] [🐢 Đầm Phá Hawaii ▾] │ [Mờ][Vừa][Đậm] │ [🐢] [✕]
-```
-
-| Control | Action |
-|---|---|
-| `▾` | Collapse / expand the bar |
-| Theme select | Switch scene instantly |
-| Mờ / Vừa / Đậm | Opacity: 25% / 55% / 85% |
-| 🐢 | Hide / show the mascot |
-| ✕ | Turn the layer off — **stays off** until you re-enable from the tray |
-
-**The ✕ is respected.** The watcher distinguishes "Antigravity wiped the DOM
-because you changed conversation" from "the user turned it off". It records
-intent in `window.__antigravitinhoTat` + `sessionStorage`, so it will not
-fight you.
-
-**Nút ✕ được tôn trọng.** Bộ theo dõi phân biệt "Antigravity xoá DOM do đổi
-hội thoại" với "người dùng chủ động tắt". Ý định được ghi vào
-`window.__antigravitinhoTat` + `sessionStorage`, nên nó không bật lại sau lưng bạn.
-
----
-
-## How it works / Cách hoạt động
-
-1. Read `%APPDATA%\Antigravity\DevToolsActivePort` → get the debug port.
-2. `GET http://127.0.0.1:<port>/json/list` → find the AGY page target.
-3. Hand-rolled WebSocket (no dependencies) → send one `Runtime.evaluate`.
-4. The payload is a self-contained IIFE containing the whole render engine.
-5. A 1.5 s watcher re-injects if AGY wiped the DOM.
-
-Details: [`docs/KIEN-TRUC.md`](docs/KIEN-TRUC.md)
-
-### One technical trap worth knowing / Một cái bẫy kỹ thuật
-
-**`requestAnimationFrame` stops completely when the window is occluded.**
-Measured on this machine: `rAF` = 0 ticks in 1.6 s, `setInterval` = 2 ticks.
-If you use rAF, the wallpaper freezes the moment another window covers
-Antigravity. This project uses `setInterval` for the injected layer — do not
-"optimise" it back.
-
-**`requestAnimationFrame` dừng hẳn khi cửa sổ bị che.** Đo thực tế: `rAF` = 0
-tick trong 1.6 giây, `setInterval` = 2 tick. Dùng rAF là hình nền đứng im ngay
-khi có cửa sổ khác che Antigravity. Dự án này dùng `setInterval` cho lớp phủ
-đã chèn — đừng "tối ưu" ngược lại.
-
----
-
-## Does an Antigravity update break it? / Antigravity cập nhật có hỏng không?
-
-Mostly no. This app patches **nothing** — it reads one text file and writes to
-RAM. If AGY keeps its debug port open (it does, it's Electron), everything keeps
-working across updates.
-
-Phần lớn là không. App này **không patch gì cả** — nó đọc 1 file text và ghi
-vào RAM. Miễn AGY còn mở cổng debug (có, vì nó là Electron), mọi thứ vẫn chạy
-qua các b��n cập nhật.
-
-| Scenario | Result |
-|---|---|
-| AGY updates, port still open | ✅ Works, self-heals in 1.5 s |
-| AGY redesigns its UI | ⚠️ Layer still shows, control bar may need repositioning |
-| AGY disables the debug port | ❌ Stops. See [`docs/CAP-NHAT-AGY.md`](docs/CAP-NHAT-AGY.md) |
-
-**Never affected / Không bao giờ bị ảnh hưởng:** conversations, `/code`,
-agents, MCP servers, settings, `app.asar`.
-
-Full checklist: [`docs/CAP-NHAT-AGY.md`](docs/CAP-NHAT-AGY.md)
-
----
-
-## Development / Phát triển
+Sinh lại bộ icon:
 
 ```powershell
-npm start                # tray app
-npm test                 # 6 tests: syntax, contracts, injection safety
-npm run check            # syntax only
-npm run do-cong          # diagnose: is AGY running? is the layer attached?
-npx electron tools/render-themes.js   # render all 6 themes to dist-anh/*.png
-```
-
-### Project layout
-
-```
-src/
-├── main.js              # tray app: menu, watcher, settings
-├── agy-bridge.js        # hand-rolled CDP + WebSocket (no deps)
-├── injector.js          # builds the self-contained injection payload
-└── renderer/
-    ├── themes-engine.js # 6 themes + vector→ASCII quantiser
-    ├── lagoon-engine.js # the original lagoon scene (24.5 s cycle)
-    └── mascot.js        # Honu: eyes follow cursor, blinks, speaks
-tools/
-├── render-themes.js     # render themes to PNG for visual review
-└── kiem-tra-cong.js     # connectivity / attachment diagnosis
-test/
-└── syntax.test.js       # contract & safety tests
-docs/
-├── KIEN-TRUC.md         # architecture in depth
-├── CAU-HINH.md          # step-by-step configuration
-├── CAP-NHAT-AGY.md      # what happens after an AGY update
-├── API-IPC.md           # IPC contract (legacy window mode)
-└── TASKS.md             # TODO list with self-contained instructions
+node tools/tao-icon-agy.mjs     # icon chữ A (logo / bộ cài)
+node tools/tao-icon-khay.mjs    # icon khay từ ảnh chân dung
 ```
 
 ---
 
-## Contributing for AI agents / Dành cho AI agent
+## ⚠️ Yêu cầu
 
-Read **[`AGENTS.md`](AGENTS.md)** first. It contains hard rules — most
-importantly: **never touch Antigravity's database**. Then work through
-[`docs/TASKS.md`](docs/TASKS.md) in order.
-
-Đọc **[`AGENTS.md`](AGENTS.md)** trước. Trong đó có quy tắc cứng — quan trọng
-nhất: **không bao giờ chạm database của Antigravity**. Sau đó làm theo
-[`docs/TASKS.md`](docs/TASKS.md) đúng thứ tự.
-
----
-
-## Credits / Ghi công
-
-- Inspired by [**Claudinho**](https://github.com/Lu1sR0/claudinho) by
-  [Luis Roberto](https://luisrobertoportifolio.com) — the idea of putting live
-  ASCII art beside an AI coding agent, and the Honu Lagoon scene.
-- Lagoon scene ported from that project's ASCII wallpaper engine.
-- This project is an independent fan work. Not affiliated with or endorsed by
-  Google. Antigravity is a Google product.
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+- Windows 10/11
+- Antigravity đã cài và **đang mở** (để có cổng gỡ lỗi)
+- Nếu app báo "Chưa kết nối được Antigravity": mở Antigravity rồi bấm
+  **Gắn lại ngay** trong menu khay. Hộp thoại này không bao giờ tự bật lại
+  liên tục — tối đa 3 lần mỗi phiên, cách nhau 10 phút.

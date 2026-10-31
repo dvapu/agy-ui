@@ -1,7 +1,22 @@
+# Phụ thuộc — cài lại bằng `npm install`
 node_modules/
+
+# Sản phẩm đóng gói — tạo lại bằng `npm run dist`
 dist/
+
+# Báo cáo kiểm thử do các test sinh ra
+.test-*.txt
+
+# Log
 *.log
-.DS_Store
+npm-debug.log*
+
+# Hệ điều hành
 Thumbs.db
-.env
-dist-anh/
+desktop.ini
+.DS_Store
+
+# Trình soạn thảo
+.vscode/
+.idea/
+*.swp
