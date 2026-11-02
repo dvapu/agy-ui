@@ -289,6 +289,10 @@ function taoMenuTray() {
     },
   }));
 
+  // 15 chủ đề mà để phẳng thì menu khay dài quá màn hình → gom vào một mục con.
+  // Nhãn mục con hiện luôn chủ đề đang chọn để không phải mở ra mới biết.
+  const tenDangDung = (TEN_THEME[thietLap.chuDe] || "").replace(/^\S+\s/, "");
+
   return Menu.buildFromTemplate([
     {
       label: dangGanThat ? "✓ Đang phủ lên Antigravity" : "Chưa gắn vào Antigravity",
@@ -322,8 +326,10 @@ function taoMenuTray() {
       },
     },
     { type: "separator" },
-    { label: "Giao diện hình nền", enabled: false },
-    ...themeItems,
+    {
+      label: `Giao diện hình nền — ${tenDangDung}`,
+      submenu: themeItems,
+    },
     { type: "separator" },
     { label: "Độ đậm lớp nền", enabled: false },
     ...[25, 40, 55, 70, 85].map((pt) => ({

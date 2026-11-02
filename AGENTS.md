@@ -88,6 +88,19 @@ Khay hệ thống (Tray)
 4. **Cổng CDP đổi mỗi lần AGY khởi động** (2555, 7634, …). Luôn đọc lại
    `DevToolsActivePort`, không hard-code.
 
+5. **Đổi chủ đề phải vẽ ngay một khung.** `setTheme()` xoá canvas; nếu chỉ trông
+   vào vòng lặp 24fps để vẽ lại thì lúc cửa sổ bị che Chromium bóp timer xuống
+   ~1 khung/giây và canvas trống hàng chục giây. `setTheme()` gọi
+   `veMotKhung(0)` trước khi trả về.
+
+6. **Canvas của hai nhánh vẽ có kích thước khác nhau.** Lagoon vẽ ở toạ độ cứng
+   1944×1760 rồi CSS phóng; engine lưới ký tự vẽ đúng tỉ lệ cửa sổ (nếu không
+   phần chân cảnh bị cắt). `datKichThuoc()` lo việc đổi qua lại.
+
+7. **Lưới ký tự là chỗ tốn CPU nhất.** `fillText` từng ô rất đắt: 4600 ô tốn
+   13.6ms/khung. Đổi sang 18×26 + siêu mẫu 2×2 (1560 ô) là CPU về mức không đo
+   được, chất lượng không đổi. Đừng tăng lại `cw`/`ch`/`ss` mà không đo.
+
 ---
 
 ## 3. Cấu trúc thư mục
@@ -103,13 +116,26 @@ antigravitinho/
 │   ├── chan-dialog.js           # chặn spam hộp thoại
 │   └── renderer/
 │       ├── mascot-a.js
-│       ├── themes-engine.js
+│       ├── themes-engine.js     # bộ điều phối hai nhánh vẽ
+│       ├── ascii-themes.js      # engine lưới ký tự + 15 chủ đề (từ Claudinho, MIT)
 │       └── lagoon-engine.js
 ├── tools/                       # test + script sinh icon, shortcut
 ├── test/syntax.test.js          # test cú pháp + hợp đồng module
 ├── docs/                        # tài liệu (xem docs/README.md)
 └── dist/                        # sản phẩm đóng gói (không commit)
 ```
+
+### Thêm một chủ đề mới
+
+1. Thêm khoá vào `TEN_THEME` trong `src/injector.js` (nhãn tiếng Việt).
+2. Thêm ánh xạ khoá → id theme trong `BANG_CHU_DE`
+   (`src/renderer/themes-engine.js`).
+3. Nếu dùng engine lưới ký tự: thêm object theme vào `src/renderer/ascii-themes.js`
+   (phải có `bg`, `scene`, `grid`, `accent`).
+4. Chạy `npm test` — test sẽ báo nếu thiếu ánh xạ hoặc theme trỏ tới id không có.
+5. Chạy `tools/test-chu-de.mjs` — nó đo điểm ảnh thật, bắt theme "chết".
+
+Dock và menu khay tự sinh từ `TEN_THEME`, không phải sửa tay ở hai nơi.
 
 ---
 
@@ -125,10 +151,18 @@ npm test             # test nhanh (cú pháp + hợp đồng + chặn dialog)
 Test đầy đủ (cần Electron):
 
 ```powershell
-.\node_modules\electron\dist\electron.exe tools\test-inject.mjs     # 19 muc
+.\node_modules\electron\dist\electron.exe tools\test-inject.mjs     # 20 muc
 .\node_modules\electron\dist\electron.exe tools\test-gan-lai.mjs    # 28 muc
 .\node_modules\electron\dist\electron.exe tools\test-tuong-tac.mjs  # 13 muc
 .\node_modules\electron\dist\electron.exe tools\test-khay.mjs       # 13 muc
+.\node_modules\electron\dist\electron.exe tools\test-chu-de.mjs     # 64 muc
+.\node_modules\electron\dist\electron.exe tools\test-menu.mjs       # 9 muc
+```
+
+Xem hình nền bằng mắt (ra `dist-anh/<chu-de>.png`):
+
+```powershell
+.\node_modules\electron\dist\electron.exe tools\render-themes.js
 ```
 
 Kiểm tra kết nối tới AGY thật (cần AGY đang mở):

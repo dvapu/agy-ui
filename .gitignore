@@ -4,6 +4,9 @@ node_modules/
 # Sản phẩm đóng gói — tạo lại bằng `npm run dist`
 dist/
 
+# Ảnh render từng chủ đề — tạo lại bằng tools/render-themes.js
+dist-anh/
+
 # Báo cáo kiểm thử do các test sinh ra
 .test-*.txt
 

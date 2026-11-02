@@ -46,6 +46,9 @@ test("injector sinh mã chèn hợp lệ và có đủ 3 engine", async () => {
   assert.ok(ma.includes("ThemesEngine"), "thiếu ThemesEngine");
   assert.ok(ma.includes("MascotA"), "thiếu MascotA");
   assert.ok(ma.includes("LagoonEngine"), "thiếu LagoonEngine");
+  // Engine lưới ký tự chuyển từ Claudinho phải nằm trong mã chèn, nếu thiếu
+  // thì 14 chủ đề mới sẽ không vẽ được gì.
+  assert.ok(ma.includes("ASCII_ENGINE"), "thiếu engine lưới ký tự (ascii-themes)");
 
   // Mã chèn phải tự chứa: không còn import/export
   assert.ok(!/^\s*import\s/m.test(ma), "không được còn import trong mã chèn");
@@ -54,7 +57,7 @@ test("injector sinh mã chèn hợp lệ và có đủ 3 engine", async () => {
   // Phải parse được như JS hợp lệ
   assert.doesNotThrow(() => new Function(ma), "mã chèn không phải JS hợp lệ");
 
-  assert.equal(Object.keys(TEN_THEME).length, 6, "phải có đúng 6 theme");
+  assert.equal(Object.keys(TEN_THEME).length, 15, "phải có đúng 15 theme");
 });
 
 test("injector chặn tham số rác (XSS qua chuDe, số vô lý)", async () => {
@@ -75,33 +78,40 @@ test("injector chặn tham số rác (XSS qua chuDe, số vô lý)", async () =>
   assert.ok(ma0.includes("88px"), "co = 0 phải về 88");
 });
 
-test("mọi theme khai báo trong TEN_THEME đều có hàm vẽ", async () => {
+test("mọi theme khai báo trong TEN_THEME đều vẽ được", async () => {
   const { TEN_THEME } = await import("../src/injector.js");
+  const { BANG_CHU_DE } = await import("../src/renderer/themes-engine.js");
+  const { ASCII_THEMES } = await import("../src/renderer/ascii-themes.js");
   const src = doc("src", "renderer", "themes-engine.js");
 
-  const canCo = {
-    koi: "drawKoiPond",
-    galaxy: "drawGalaxy",
-    matrix: "drawMatrix",
-    fireplace: "drawFireplace",
-    rain: "drawRain",
-  };
+  const idCoThat = new Set(ASCII_THEMES.map((t) => t.id));
 
-  // Chỉ xét thân hàm veMotKhung để chắc hàm vẽ thật sự được gọi
-  const dau = src.indexOf("veMotKhung(t)");
-  const cuoi = src.indexOf("stop()");
-  assert.ok(dau > 0 && cuoi > dau, "không tìm thấy veMotKhung trong themes-engine.js");
-  const than = src.slice(dau, cuoi);
+  for (const khoa of Object.keys(TEN_THEME)) {
+    // Mọi khoá phải có ánh xạ sang engine, nếu không đổi theme sẽ ra màn trống
+    assert.ok(BANG_CHU_DE[khoa], `theme "${khoa}" chưa có trong BANG_CHU_DE`);
 
-  for (const theme of Object.keys(TEN_THEME)) {
-    if (theme === "lagoon") {
-      assert.ok(than.includes("lagoonEngine"), "lagoon phải do LagoonEngine vẽ");
+    if (khoa === "lagoon") {
+      // Lagoon giữ engine riêng — đây là hình đã được kiểm chứng
+      assert.ok(src.includes("lagoonEngine.draw"), "lagoon phải do LagoonEngine vẽ");
       continue;
     }
-    const ten = canCo[theme];
-    assert.ok(ten, `theme "${theme}" chưa khai báo hàm vẽ trong test`);
-    assert.ok(src.includes(ten + "("), `thiếu hàm ${ten} cho theme ${theme}`);
-    assert.ok(than.includes(ten + "("), `veMotKhung chưa gọi ${ten}`);
+    // Các theme còn lại phải trỏ tới một id có thật trong ascii-themes
+    assert.ok(idCoThat.has(BANG_CHU_DE[khoa]),
+      `theme "${khoa}" trỏ tới id không tồn tại: ${BANG_CHU_DE[khoa]}`);
+  }
+
+  // Không được có theme chết: mọi theme trong engine đều phải dùng được
+  const dung = new Set(Object.values(BANG_CHU_DE));
+  for (const t of ASCII_THEMES) {
+    assert.ok(dung.has(t.id), `theme "${t.id}" của engine chưa được gán khoá cấu hình`);
+  }
+
+  // Mỗi theme phải có đủ 3 phần: nền, cảnh, lưới
+  for (const t of ASCII_THEMES) {
+    assert.equal(typeof t.bg, "function", `theme ${t.id} thiếu bg()`);
+    assert.equal(typeof t.scene, "function", `theme ${t.id} thiếu scene()`);
+    assert.ok(t.grid, `theme ${t.id} thiếu màu lưới`);
+    assert.ok(t.accent, `theme ${t.id} thiếu màu nhấn`);
   }
 });
 

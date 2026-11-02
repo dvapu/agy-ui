@@ -58,14 +58,38 @@ Windows bóp nhịp cửa sổ bị che khuất.
 
 ---
 
-## 🎨 6 giao diện hình nền động
+## 🎨 15 giao diện hình nền động
 
-1. 🐢 **Đầm Phá Hawaii** — rùa Honu, cá đuối, cá heo, cá voi, hoa dâm bụt
-2. 🎏 **Hồ Cá Koi** — lá sen, hoa súng, bầy Koi uốn lượn
-3. 🌌 **Dải Ngân Hà** — tinh vân, 280+ vì sao
-4. 💻 **Ma Trận Code** — mưa Katakana & hex neon
-5. 🔥 **Lò Sưởi Ấm** — lửa bập bùng, tàn tro bay
-6. 🌧️ **Đêm Mưa** — mưa xiên, đèn neon phản chiếu
+Mười lăm giao diện, cùng một kỹ thuật vẽ: hình được vẽ dạng vector vào một lớp
+phóng to, rồi **mỗi ô lưới ký tự** lấy trung bình màu của các mẫu bên dưới và tô
+thành một viên gạch bo góc kèm ký tự. Nhờ vậy hình có khối, có bóng, có chiều
+sâu — không phải vài nét vector thưa thớt.
+
+| Giao diện | Nội dung |
+| --- | --- |
+| 🐢 **Đầm Phá Hawaii** | rùa Honu, cá đuối, cá heo, cá voi, hoa dâm bụt |
+| 🎏 **Hồ Cá Koi** | lá sen, hoa súng, bầy Koi uốn lượn, thả thức ăn bằng cách bấm |
+| 🌌 **Dải Ngân Hà** | tinh vân, phi thuyền, sao băng, hành tinh |
+| 💻 **Ma Trận Code** | mưa Katakana & hex neon |
+| 🔥 **Lò Sưởi Ấm** | lò sưởi gạch, lửa bập bùng, đèn, mèo cuộn |
+| 🌧️ **Đêm Mưa** | cửa sổ mưa, đèn neon phản chiếu, thành phố |
+| ✨ **Tia Sáng Claude** | tia sáng hình hoa, đốm sáng bay |
+| ☁️ **Mây Trôi** | mây trôi trên trời xanh |
+| 🪼 **Sứa Phát Lụa** | sứa phát sáng trong nước sâu |
+| ⛵ **Thuyền Ra Khơi** | thuyền buồm trên biển lúc chiều |
+| 🪰 **Đom Đóm Đêm** | đom đóm, đồi núi, cỏ |
+| 🌙 **Đêm Trăng** | trăng khuyết, mây, sao |
+| 🌸 **Vườn Anh Đào** | núi Phú Sĩ, cây anh đào, cổng torii |
+| 🌠 **Cực Quang Tuyết** | cực quang, núi tuyết, cabin gỗ |
+| 👾 **Arcade 8-bit** | đội hình người ngoài hành tinh, pháo đài, điểm số |
+
+Bảy giao diện cuối (`claude` → `arcade`) chuyển từ
+[Claudinho](https://github.com/Lu1sR0/claudinho) của Luis Roberto (MIT) — xem
+`src/renderer/ascii-themes.js`. Sáu giao diện đầu là bản port riêng, giữ nguyên
+hình đang có.
+
+Mọi giao diện đều phản ứng với chuột: sinh vật né hoặc đuổi theo con trỏ, bấm
+chuột tạo hiệu ứng riêng của từng cảnh.
 
 ---
 
@@ -117,6 +141,22 @@ rời DOM — gắn/gỡ vài lần là chúng chồng lên nhau và cả Antigr
 **0.80 giây CPU / 5 giây** (giảm 10 lần). Test hồi quy `tools/test-gan-lai.mjs`
 gắn/gỡ 5 lần liên tiếp và đòi số vòng lặp luôn đúng bằng 2.
 
+### Đổi chủ đề xong là có hình ngay
+
+`setTheme()` xoá canvas rồi trước đây trông vào vòng lặp 24fps để vẽ lại. Nhưng
+khi cửa sổ bị che, Chromium bóp timer của trang xuống còn ~1 khung/giây (hoặc
+đóng băng hẳn) — canvas trống hàng chục giây, trông như app hỏng. Vì vậy
+`setTheme()` **vẽ ngay một khung** trước khi trả về. `tools/test-chu-de.mjs` mục
+[5] canh đúng điều này cho cả 15 chủ đề.
+
+### 15 chủ đề nặng bao nhiêu
+
+Lưới càng mịn thì càng nhiều lệnh vẽ. Bản gốc Claudinho dùng ô 14×20 với siêu
+mẫu 3×3: đo trên AGY thật tốn **4.1 giây CPU / 6 giây** (68% một nhân), riêng
+`fillText` cho 4600 ô đã là 13.6ms mỗi khung. Đổi sang ô 18×26, siêu mẫu 2×2
+(1560 ô) thì ảnh gần như không khác (`dist-anh/so-sanh/`), còn CPU **không đo
+được khác biệt so với lúc không bật lớp phủ**.
+
 ---
 
 ## 🛠️ Cấu trúc
@@ -138,16 +178,20 @@ antigravitinho/
 │   ├── chan-dialog.js           # bộ chặn spam hộp thoại
 │   └── renderer/
 │       ├── mascot-a.js          # mascot chữ A (vật lý, tương tác, cảm xúc)
-│       ├── themes-engine.js     # 6 theme hình nền
+│       ├── themes-engine.js     # bộ điều phối: chọn nhánh vẽ, kích thước canvas
+│       ├── ascii-themes.js      # engine lưới ký tự + 15 chủ đề (từ Claudinho, MIT)
 │       └── lagoon-engine.js     # động cơ ASCII Honu Lagoon
 └── tools/
     ├── tao-icon-agy.mjs         # sinh lại bộ icon chữ A từ path vector + gradient
     ├── tao-icon-khay.mjs        # sinh icon khay từ ảnh chân dung (cắt tròn + crop)
     ├── tao-shortcut.ps1         # tạo / gỡ shortcut Desktop + Start Menu
+    ├── render-themes.js         # render mọi chủ đề ra PNG để kiểm tra bằng mắt
     ├── test-chan-dialog.mjs     # test bộ chặn spam (node --test)
     ├── test-tuong-tac.mjs       # test tương tác mascot (13 mục)
-    ├── test-inject.mjs          # test chèn/gỡ lớp phủ (19 mục)
+    ├── test-inject.mjs          # test chèn/gỡ lớp phủ (20 mục)
     ├── test-gan-lai.mjs         # test gắn/gỡ nhiều lần không rò rỉ vòng lặp (28 mục)
+    ├── test-chu-de.mjs          # test từng chủ đề vẽ ra hình thật (64 mục)
+    ├── test-menu.mjs            # test menu khay gọn, đủ 15 chủ đề (9 mục)
     ├── test-khay.mjs            # test icon khay nạp được vào Tray
     ├── preview-mascot.html      # xem mascot ở kích thước lớn
     └── preview-khay.html        # xem icon khay trên nền tối/sáng
@@ -160,13 +204,13 @@ antigravitinho/
 ```powershell
 cd "C:\Users\b\.gemini\antigravity\scratch\antigravitinho"
 
-# Test bộ chặn spam hộp thoại (nhanh, thuần Node) — 8 mục
-node --test tools/test-chan-dialog.mjs
+# Cú pháp + hợp đồng module + chặn spam hộp thoại (nhanh, thuần Node) — 16 mục
+npm test
 
 # Test tương tác mascot — 13 mục
 .\node_modules\electron\dist\electron.exe tools\test-tuong-tac.mjs
 
-# Test chèn / gỡ lớp phủ — 19 mục
+# Test chèn / gỡ lớp phủ — 20 mục
 .\node_modules\electron\dist\electron.exe tools\test-inject.mjs
 
 # Test icon khay — 13 mục
@@ -174,9 +218,18 @@ node --test tools/test-chan-dialog.mjs
 
 # Test gắn/gỡ nhiều lần — 28 mục (chống rò rỉ vòng lặp)
 .\node_modules\electron\dist\electron.exe tools\test-gan-lai.mjs
+
+# Test từng chủ đề vẽ ra hình thật — 64 mục
+.\node_modules\electron\dist\electron.exe tools\test-chu-de.mjs
+
+# Test menu khay gọn, đủ chủ đề — 9 mục
+.\node_modules\electron\dist\electron.exe tools\test-menu.mjs
+
+# Render mọi chủ đề ra PNG để xem bằng mắt → dist-anh/
+.\node_modules\electron\dist\electron.exe tools\render-themes.js
 ```
 
-Tổng cộng **81 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
+Tổng cộng **163 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
 
 ---
 

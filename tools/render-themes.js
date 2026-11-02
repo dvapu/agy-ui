@@ -1,4 +1,4 @@
-﻿// Render 6 theme ra ảnh PNG để kiểm tra bằng mắt (dùng cửa sổ ẩn thật).
+﻿// Render mọi theme ra ảnh PNG để kiểm tra bằng mắt (dùng cửa sổ thật, ẩn).
 //
 // Chạy: npx electron tools/render-themes.js
 // Ảnh ra: dist-anh/<theme>.png
@@ -6,16 +6,18 @@ import { app, BrowserWindow } from "electron";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { TEN_THEME } from "../src/injector.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GOC = join(__dirname, "..");
 const RA = join(GOC, "dist-anh");
 if (!existsSync(RA)) mkdirSync(RA, { recursive: true });
 
-const THEME = ["lagoon", "koi", "galaxy", "matrix", "fireplace", "rain"];
+// Lấy đúng danh sách đang có trong app — thêm theme mới là tự render theo.
+const THEME = Object.keys(TEN_THEME);
 
 const html = `<!DOCTYPE html><html><body style="margin:0;background:#000">
-<canvas id="c" width="1944" height="1760"></canvas>
+<canvas id="c" width="1600" height="900"></canvas>
 <script type="module">
   import { ThemesEngine } from "../src/renderer/themes-engine.js";
   window.ThemesEngine = ThemesEngine;
@@ -55,15 +57,11 @@ app.whenReady().then(async () => {
         const eng = new ThemesEngine(cv);
         eng.setCheDoPhu(false);
         eng.setTheme(${JSON.stringify(theme)});
-        const ten = ${JSON.stringify(theme)};
-        if (ten === "matrix") {
-          // Matrix cần thời gian để cột mã rơi xuống — mô phỏng 3 giây ở 24fps
-          for (let f = 0; f < 72; f++) eng.veMotKhung(f / 24);
-        } else {
-          eng.veMotKhung(3.0);
-          eng.veMotKhung(6.0);
-          eng.veMotKhung(9.5);
-        }
+        // Render ở đúng tỉ lệ khung hình của cửa sổ AGY thật (16:9), không
+        // phải canvas vuông — nếu không sẽ không thấy được cảnh có bị cắt không.
+        eng.datKichThuoc(1600, 900);
+        // 96 khung ở 24fps = 4 giây: đủ để cột mã rơi, cá bơi, lửa cháy ổn định
+        for (let f = 0; f < 96; f++) eng.veMotKhung(f / 24);
         return cv.toDataURL("image/png");
       })()`);
 

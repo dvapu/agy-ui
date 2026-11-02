@@ -43,6 +43,15 @@ export const TEN_THEME = {
   matrix: "💻 Ma Trận Code",
   fireplace: "🔥 Lò Sưởi Ấm",
   rain: "🌧️ Đêm Mưa",
+  claude: "✨ Tia Sáng Claude",
+  clouds: "☁️ Mây Trôi",
+  jelly: "🪼 Sứa Phát Sáng",
+  boats: "⛵ Thuyền Ra Khơi",
+  fireflies: "🪰 Đom Đóm Đêm",
+  moonlit: "🌙 Đêm Trăng",
+  sakura: "🌸 Vườn Anh Đào",
+  aurora: "🌠 Cực Quang Tuyết",
+  arcade: "👾 Arcade 8-bit",
 };
 
 /**
@@ -64,6 +73,9 @@ export function taoMaInjection(cauHinh = {}) {
   const coMascot = Math.min(400, Math.max(24, Math.round(so(cauHinh.co, 88))));
 
   const lagoon = goModule(docFile("lagoon-engine.js"));
+  // Engine lưới ký tự + 15 chủ đề chuyển từ Claudinho (MIT) — phải đứng
+  // TRƯỚC themes-engine vì themes-engine dùng các khai báo trong file này.
+  const ascii = goModule(docFile("ascii-themes.js"));
   const themes = goModule(docFile("themes-engine.js"));
   const mascot = goModule(docFile("mascot-a.js"));
   const anh = anhMascot();
@@ -174,12 +186,7 @@ export function taoMaInjection(cauHinh = {}) {
     <div class="dock">
       <span class="lbl">Giao diện</span>
       <select class="theme">
-        <option value="lagoon">${TEN_THEME.lagoon}</option>
-        <option value="koi">${TEN_THEME.koi}</option>
-        <option value="galaxy">${TEN_THEME.galaxy}</option>
-        <option value="matrix">${TEN_THEME.matrix}</option>
-        <option value="fireplace">${TEN_THEME.fireplace}</option>
-        <option value="rain">${TEN_THEME.rain}</option>
+${Object.entries(TEN_THEME).map(([k, nhan]) => `        <option value="${k}">${nhan}</option>`).join("\n")}
       </select>
       <span class="lbl">Đậm</span>
       <input class="alpha" type="range" min="10" max="95" value="${Math.round(doDam * 100)}" />
@@ -190,6 +197,8 @@ export function taoMaInjection(cauHinh = {}) {
 
   // ── Động cơ (dùng lại mã thật của app) ──────────────────────────────────
   ${lagoon}
+
+  ${ascii}
 
   ${themes}
 
@@ -219,8 +228,19 @@ export function taoMaInjection(cauHinh = {}) {
   engine.setTheme(${chuDe});
 
   const fit = () => {
-    const s = Math.max(window.innerWidth / 1944, window.innerHeight / 1760);
-    sea.style.transform = "translate(-50%, -50%) scale(" + s + ")";
+    engine.datKichThuoc(window.innerWidth, window.innerHeight);
+    if (engine.rong === 1944) {
+      // Lagoon vẽ ở toạ độ cứng 1944×1760 → phóng to phủ kín cửa sổ
+      const s = Math.max(window.innerWidth / 1944, window.innerHeight / 1760);
+      sea.style.transform = "translate(-50%, -50%) scale(" + s + ")";
+      sea.style.width = "1944px";
+      sea.style.height = "1760px";
+    } else {
+      // Các chủ đề khác vẽ đúng tỉ lệ cửa sổ → không phóng, không cắt
+      sea.style.transform = "translate(-50%, -50%)";
+      sea.style.width = "100%";
+      sea.style.height = "100%";
+    }
   };
   fit();
   nghe(window, "resize", fit);
@@ -263,6 +283,7 @@ export function taoMaInjection(cauHinh = {}) {
   // Gộp lại để mỗi lần di chuột chỉ tốn một lượt xử lý, không phải hai.
   const khiDiChuot = (e) => {
     mv.capNhatChuot(e.clientX, e.clientY);
+    engine.datChuot(e.clientX, e.clientY);
     const gan = e.clientX > window.innerWidth - 340 && e.clientY > window.innerHeight - 240;
     dock.classList.toggle("show", gan);
   };
@@ -289,9 +310,16 @@ export function taoMaInjection(cauHinh = {}) {
   box.__huy = huy;
 
   // ── Điều khiển ─────────────────────────────────────────────────────────
+  // Đổi chủ đề có thể đổi luôn nhánh vẽ (lagoon ↔ engine mới), mà hai nhánh
+  // dùng hai hệ toạ độ khác nhau → phải gọi fit() để canvas đổi kích thước.
+  const doiChuDe = (ten) => {
+    engine.setTheme(ten);
+    fit();
+    selTheme.value = ten;
+  };
   selTheme.value = ${chuDe};
   selTheme.addEventListener("change", (e) => {
-    engine.setTheme(e.target.value);
+    doiChuDe(e.target.value);
     mv.noi("Đã đổi sang " + e.target.options[e.target.selectedIndex].text + " ✨", 2400);
   });
 
@@ -304,7 +332,7 @@ export function taoMaInjection(cauHinh = {}) {
 
   // ── API nội bộ ─────────────────────────────────────────────────────────
   box.__song = true;
-  box.__doiChuDe = (t) => { engine.setTheme(t); selTheme.value = t; };
+  box.__doiChuDe = (t) => doiChuDe(t);
   box.__doiDam = (d) => { sea.style.opacity = String(d); inpAlpha.value = String(Math.round(d * 100)); };
   box.__doiCo = (c) => {
     hit.style.width = c + "px";
@@ -313,6 +341,17 @@ export function taoMaInjection(cauHinh = {}) {
   };
   box.__mascot = mv;
   box.__engine = engine;          // tay nắm để kiểm tra / dọn dẹp
+  box.__tuyChon = {
+    // Dùng cho test/đo đạc: dựng lại renderer với thông số lưới khác
+    datLai(opt) {
+      Object.assign(engine.tuyChon, opt);
+      engine.renderer = taoRenderer(sea, engine.tuyChon);
+      engine.rong = 0; engine.cao = 0;
+      fit();
+    },
+    // Lấy bảng chủ đề để đo đạc bên ngoài
+    danhSachTheme: ASCII_THEMES,
+  };
   window.__antigravitinhoBox = box;
 
   mv.noi("Xin chào! Tôi là chữ A của Antigravity 🐢", 4000);
