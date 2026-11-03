@@ -261,8 +261,12 @@ export class LagoonEngine {
   }
 
   cells(L, depth, t, glyphs) {
-    // Ở chế độ lớp phủ, giảm độ đục để nội dung app bên dưới vẫn đọc được
-    if (this.cheDoPhu) this.ctx.globalAlpha = 0.42;
+    // Ở chế độ lớp phủ, giảm độ đục để nội dung app bên dưới vẫn đọc được.
+    // PHẢI NHÂN vào alpha hiện có, không được ghi đè: lớp ngoài
+    // (ThemesEngine.veMotKhung) đã đặt globalAlpha cho độ đậm và hệ số giảm
+    // sáng. Ghi đè = phá cả hai, và đặt lại = 1 ở cuối hàm là xoá sạch.
+    const alphaNgoai = this.ctx.globalAlpha;
+    if (this.cheDoPhu) this.ctx.globalAlpha = alphaNgoai * 0.42;
     for (let j = 0; j < this.ROWS; j++) {
       for (let i = 0; i < this.COLS; i++) {
         const o = (j * this.COLS + i) * 4, a = L[o + 3];
@@ -285,7 +289,7 @@ export class LagoonEngine {
         }
       }
     }
-    if (this.cheDoPhu) this.ctx.globalAlpha = 1;
+    if (this.cheDoPhu) this.ctx.globalAlpha = alphaNgoai;
   }
 
   draw(t) {

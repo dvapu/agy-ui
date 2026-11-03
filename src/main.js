@@ -43,6 +43,10 @@ const MAC_DINH = {
   coMascot: 88,         // cạnh mascot (px)
   tuDongGan: true,      // tự gắn lại khi AGY tải lại / khởi động
   dangGan: false,       // lớp đang gắn trong DOM AGY
+  // Thử nghiệm: làm nền các panel của AGY trong suốt để hình nền lộ ra dưới
+  // chữ. Mặc định TẮT vì đây là sửa giao diện của AGY — AGY cập nhật là có
+  // thể vỡ. Bật bằng menu khay.
+  nenTrongSuot: false,
 };
 
 let thietLap = { ...MAC_DINH };
@@ -89,6 +93,7 @@ async function ganLopPhu(imLang = false) {
       chuDe: thietLap.chuDe,
       doDam: thietLap.doDam,
       co: thietLap.coMascot,
+      nenTrongSuot: !!thietLap.nenTrongSuot,
     });
 
     const kq = await ganVaoAgy(ma);
@@ -345,6 +350,27 @@ function taoMenuTray() {
     })),
     { type: "separator" },
     { label: "Mở Antigravity", click: () => moAntigravity() },
+    {
+      label: "Thử nghiệm",
+      submenu: [
+        {
+          label: "Nền AGY trong suốt (hình nền lộ ra dưới chữ)",
+          type: "checkbox",
+          checked: !!thietLap.nenTrongSuot,
+          click: async (mi) => {
+            thietLap.nenTrongSuot = mi.checked;
+            luuThietLap();
+            // Đổi CSS của AGY nên phải gỡ rồi gắn lại mới có hiệu lực
+            if (dangGanThat) { await goLopPhu(); await ganLopPhu(); }
+            capNhatTray();
+          },
+        },
+        {
+          label: "Cảnh báo: mục này sửa giao diện Antigravity",
+          enabled: false,
+        },
+      ],
+    },
     {
       label: "Khởi động cùng Windows",
       type: "checkbox",

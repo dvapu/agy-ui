@@ -91,6 +91,36 @@ hình đang có.
 Mọi giao diện đều phản ứng với chuột: sinh vật né hoặc đuổi theo con trỏ, bấm
 chuột tạo hiệu ứng riêng của từng cảnh.
 
+### Không che chữ của Antigravity
+
+Lớp phủ nằm **trên** nội dung AGY, nên nếu tô kín màn hình thì chữ trắng của AGY
+biến mất — đúng lỗi từng gặp với `clouds`, `boats`, `sakura`. Ba quy tắc giữ cho
+chữ luôn đọc được, đo trên AGY thật (1707×912):
+
+| Quy tắc | Trước | Sau |
+| --- | --- | --- |
+| **Không tô nền đặc** — chỉ vẽ sinh vật, để nền tối của AGY lộ ra | vùng giữa bị phủ 100% | 4–37% |
+| **Chừa thanh trên (35px) và ô nhập tin (90px)** | phủ 100% | **0%** |
+| **Tự hạ độ đậm theo độ sáng chủ đề** | `clouds` alpha 255 (trắng xoá) | alpha 56 |
+
+Hai con số 35px và 90px **không phải số cứng**: `doVungChua()` đo trực tiếp
+`getBoundingClientRect()` của thanh trên và của `#antigravity.agentSidePanelInputBox`,
+nên AGY đổi giao diện hay đổi kích thước cửa sổ đều theo đúng. Không tìm thấy
+phần tử thì rơi về 35/90.
+
+Độ đậm hiệu dụng = độ đậm bạn đặt × hệ số theo độ sáng chủ đề. Hệ số đo một lần
+cho mỗi chủ đề (`doSangCuaTheme`), chủ đề tối giữ nguyên, chủ đề sáng bị hạ — nên
+không phải chỉnh tay khi đổi giao diện.
+
+### Thử nghiệm: nền AGY trong suốt
+
+Menu khay → **Thử nghiệm** → *Nền AGY trong suốt*. Mặc định **tắt**.
+
+Bật thì các panel của AGY thành trong suốt để hình nền lộ ra sau chữ. Đây là
+**sửa CSS của AGY** nên tách riêng: có `<style id="__antigravitinho-css-agy">`
+riêng, gỡ lớp phủ là gỡ luôn, và AGY cập nhật phiên bản có thể làm vỡ. Chỉ đụng
+`background-color`, không đụng layout, chữ hay sự kiện.
+
 ---
 
 ## 🚀 Chạy app
@@ -191,6 +221,7 @@ antigravitinho/
     ├── test-inject.mjs          # test chèn/gỡ lớp phủ (20 mục)
     ├── test-gan-lai.mjs         # test gắn/gỡ nhiều lần không rò rỉ vòng lặp (28 mục)
     ├── test-chu-de.mjs          # test từng chủ đề vẽ ra hình thật (64 mục)
+    ├── test-khong-che-chu.mjs   # test lớp phủ không che chữ AGY (67 mục)
     ├── test-menu.mjs            # test menu khay gọn, đủ 15 chủ đề (9 mục)
     ├── test-khay.mjs            # test icon khay nạp được vào Tray
     ├── preview-mascot.html      # xem mascot ở kích thước lớn
@@ -222,14 +253,20 @@ npm test
 # Test từng chủ đề vẽ ra hình thật — 64 mục
 .\node_modules\electron\dist\electron.exe tools\test-chu-de.mjs
 
+# Test lớp phủ không che chữ AGY — 67 mục
+.\node_modules\electron\dist\electron.exe tools\test-khong-che-chu.mjs
+
 # Test menu khay gọn, đủ chủ đề — 9 mục
 .\node_modules\electron\dist\electron.exe tools\test-menu.mjs
 
 # Render mọi chủ đề ra PNG để xem bằng mắt → dist-anh/
 .\node_modules\electron\dist\electron.exe tools\render-themes.js
+
+# Render đúng thứ người dùng thấy (bỏ nền, chừa 2 dải) → dist-anh/lop-phu/
+.\node_modules\electron\dist\electron.exe tools\render-lop-phu.js
 ```
 
-Tổng cộng **163 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
+Tổng cộng **230 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
 
 ---
 

@@ -294,6 +294,9 @@ export const MA_GO_LOP_PHU = `(() => {
     try { box.remove?.(); } catch (e) { }
   }
   document.getElementById("__antigravitinho-css")?.remove();
+  // CSS thử nghiệm (nền AGY trong suốt) cũng phải gỡ, kể cả khi lớp phủ đã
+  // biến mất khỏi DOM mà CSS còn sót.
+  document.getElementById("__antigravitinho-css-agy")?.remove();
   window.__antigravitinhoBox = null;
   return "da-go";
 })()`;

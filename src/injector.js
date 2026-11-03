@@ -71,6 +71,7 @@ export function taoMaInjection(cauHinh = {}) {
   };
   const doDam = Math.min(0.95, Math.max(0.1, so(cauHinh.doDam, 0.55)));
   const coMascot = Math.min(400, Math.max(24, Math.round(so(cauHinh.co, 88))));
+  const nenTrongSuot = cauHinh.nenTrongSuot === true;
 
   const lagoon = goModule(docFile("lagoon-engine.js"));
   // Engine lưới ký tự + 15 chủ đề chuyển từ Claudinho (MIT) — phải đứng
@@ -174,6 +175,33 @@ export function taoMaInjection(cauHinh = {}) {
     #\${ID} .dock button:hover, #\${ID} .dock select:hover { background: rgba(63,207,210,.22); }
   \`;
   document.head.appendChild(style);
+
+  // ── Thử nghiệm: nền AGY trong suốt ─────────────────────────────────────
+  // Mặc định TẮT. Khi bật, các panel của AGY được làm trong suốt để hình nền
+  // lộ ra phía sau chữ. Đây là sửa CSS của AGY nên tách riêng, có id riêng để
+  // gỡ sạch, và không bật cùng lúc với lớp phủ ở lần chèn khác.
+  document.getElementById(ID + "-css-agy")?.remove();
+  if (${nenTrongSuot}) {
+    const styleAgy = document.createElement("style");
+    styleAgy.id = ID + "-css-agy";
+    styleAgy.textContent = \`
+      /* Nền các khối lớn của AGY -> trong suốt, chỉ để lại chữ.
+         Chỉ đụng background-color, không đụng layout / chữ / sự kiện. */
+      .agy-shell, .agy-shell > div, .agy-shell [class*="bg-background"],
+      .agy-shell [class*="bg-sidebar"], .agy-shell [class*="bg-card"] {
+        background-color: transparent !important;
+      }
+      /* Ô nhập tin giữ nền mờ để vẫn thấy khung khi gõ.
+         Dùng [id="..."] thay vì #id vì id có dấu chấm (không phải ký tự hợp lệ
+         trong selector kiểu #id). */
+      [id="antigravity.agentSidePanelInputBox"],
+      [id="antigravity.agentSidePanelInputBox"] > div {
+        background-color: rgba(16,16,16,.72) !important;
+      }
+      body { background-color: #0b0b0b !important; }
+    \`;
+    document.head.appendChild(styleAgy);
+  }
 
   // ── Khung chứa ─────────────────────────────────────────────────────────
   const box = document.createElement("div");
@@ -305,6 +333,9 @@ ${Object.entries(TEN_THEME).map(([k, nhan]) => `        <option value="${k}">${n
     boNghe.length = 0;
     box.remove();
     style.remove();
+    // CSS thử nghiệm (nền AGY trong suốt) phải gỡ cùng, nếu không AGY ở lại
+    // trong trạng thái đã bị sửa giao diện.
+    document.getElementById(ID + "-css-agy")?.remove();
     if (window.__antigravitinhoBox === box) window.__antigravitinhoBox = null;
   };
   box.__huy = huy;

@@ -169,6 +169,51 @@ test("không thêm dependency ngoài", () => {
   assert.deepEqual(deps, [], `không được thêm dependency: ${deps.join(", ")}`);
 });
 
+test("lớp phủ không được che chữ AGY", () => {
+  const engine = doc("src", "renderer", "themes-engine.js");
+  const ascii = doc("src", "renderer", "ascii-themes.js");
+  const lagoon = doc("src", "renderer", "lagoon-engine.js");
+  const main = doc("src", "main.js");
+
+  // 1. Không tô nền đặc khi chạy làm lớp phủ
+  assert.ok(engine.includes("veNen: false"),
+    "phải tắt nền đặc cho chế độ lớp phủ (veNen: false)");
+  assert.ok(ascii.includes("if (self.veNen) theme.bg(ctx, env)"),
+    "ascii-themes phải chỉ vẽ nền khi veNen bật");
+
+  // 2. Hai dải chừa: đo bằng DOM, không dùng số cứng
+  assert.ok(engine.includes("doVungChua()"),
+    "thiếu doVungChua() — phải đo vùng chừa theo layout thật");
+  assert.ok(engine.includes("agentSidePanelInputBox"),
+    "phải tìm ô nhập tin của AGY để chừa");
+  assert.ok(engine.includes("xoaVungChua()"),
+    "thiếu bước xoá vùng chừa khỏi canvas");
+
+  // destination-out bị nhân với globalAlpha -> phải đặt lại = 1
+  const thanXoa = engine.slice(engine.indexOf("xoaVungChua() {"), engine.indexOf("vungVe() {"));
+  assert.ok(thanXoa.includes("globalAlpha = 1"),
+    "destination-out phải đặt globalAlpha = 1, nếu không chỉ xoá được một phần");
+
+  // 3. Tự hạ độ đậm theo độ sáng chủ đề
+  assert.ok(engine.includes("heSoTheoDoSang"), "thiếu heSoTheoDoSang()");
+  assert.ok(engine.includes("doSangCuaTheme"), "thiếu doSangCuaTheme()");
+
+  // 4. Engine con không được ghi đè globalAlpha của lớp ngoài
+  assert.ok(!/globalAlpha = 1/.test(lagoon),
+    "lagoon-engine không được đặt globalAlpha = 1 (phá alpha của lớp ngoài)");
+  assert.ok(lagoon.includes("alphaNgoai"),
+    "lagoon-engine phải nhân vào alpha hiện có rồi khôi phục");
+
+  // 5. Công tắc thử nghiệm phải mặc định tắt và gỡ sạch được
+  assert.ok(/nenTrongSuot:\s*false/.test(main),
+    "nenTrongSuot phải mặc định false");
+  const injector = doc("src", "injector.js");
+  assert.ok(injector.includes("css-agy"), "thiếu style riêng cho thử nghiệm CSS AGY");
+  const bridge = doc("src", "agy-bridge.js");
+  assert.ok(bridge.includes('"__antigravitinho-css-agy"'),
+    "MA_GO_LOP_PHU phải gỡ cả CSS thử nghiệm");
+});
+
 test("main.js không đụng vào DB của Antigravity", () => {
   const toanBo = doc("src", "main.js") + doc("src", "agy-bridge.js");
 

@@ -101,6 +101,21 @@ Khay hệ thống (Tray)
    13.6ms/khung. Đổi sang 18×26 + siêu mẫu 2×2 (1560 ô) là CPU về mức không đo
    được, chất lượng không đổi. Đừng tăng lại `cw`/`ch`/`ss` mà không đo.
 
+8. **Lớp phủ nằm TRÊN chữ AGY → không được tô nền đặc.** Bản gốc engine luôn
+   gọi `theme.bg()` (fillRect kín màn hình). Với lớp phủ phải tắt: `veNen: false`.
+   Nếu bật, cả màn hình thành một màu và chữ trắng biến mất.
+
+9. **`destination-out` bị nhân với `globalAlpha` hiện tại.** Xoá vùng chừa bên
+   trong lớp `save()` đã hạ alpha 0.45 thì chỉ xoá được 45%. Phải đặt
+   `globalAlpha = 1` trước khi xoá.
+
+10. **Engine con không được ghi đè `globalAlpha`.** `LagoonEngine.cells()` từng
+    đặt `globalAlpha = 0.42` rồi `= 1` ở cuối, phá sạch độ đậm và hệ số giảm
+    sáng của lớp ngoài. Phải NHÂN vào alpha hiện có rồi khôi phục lại.
+
+11. **Đo độ sáng phải composite lên nền.** Điểm ảnh trắng nhưng alpha 40 thì
+    mắt thấy xám. Đo RGB gốc sẽ kết luận sai là "chữ bị che".
+
 ---
 
 ## 3. Cấu trúc thư mục
@@ -156,6 +171,7 @@ Test đầy đủ (cần Electron):
 .\node_modules\electron\dist\electron.exe tools\test-tuong-tac.mjs  # 13 muc
 .\node_modules\electron\dist\electron.exe tools\test-khay.mjs       # 13 muc
 .\node_modules\electron\dist\electron.exe tools\test-chu-de.mjs     # 64 muc
+.\node_modules\electron\dist\electron.exe tools\test-khong-che-chu.mjs  # 67 muc
 .\node_modules\electron\dist\electron.exe tools\test-menu.mjs       # 9 muc
 ```
 

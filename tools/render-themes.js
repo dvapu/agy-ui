@@ -20,7 +20,9 @@ const html = `<!DOCTYPE html><html><body style="margin:0;background:#000">
 <canvas id="c" width="1600" height="900"></canvas>
 <script type="module">
   import { ThemesEngine } from "../src/renderer/themes-engine.js";
+  import { taoRenderer } from "../src/renderer/ascii-themes.js";
   window.ThemesEngine = ThemesEngine;
+  window.taoRenderer = taoRenderer;
   window.sanSang = true;
 </script>
 </body></html>`;
@@ -56,6 +58,11 @@ app.whenReady().then(async () => {
         const cv = document.getElementById("c");
         const eng = new ThemesEngine(cv);
         eng.setCheDoPhu(false);
+        // Render ảnh để xem: bật nền đặc lại (khi chạy làm lớp phủ thì tắt)
+        eng.tuyChon.veNen = true;
+        eng.renderer = taoRenderer(cv, eng.tuyChon);
+        // Bỏ chừa dải: ảnh xem phải đủ khung
+        eng.chua = { tren: 0, duoi: 0 };
         eng.setTheme(${JSON.stringify(theme)});
         // Render ở đúng tỉ lệ khung hình của cửa sổ AGY thật (16:9), không
         // phải canvas vuông — nếu không sẽ không thấy được cảnh có bị cắt không.

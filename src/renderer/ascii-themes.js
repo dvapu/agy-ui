@@ -42,7 +42,10 @@ const RAMP = "8%XSSt%t;:";
 function Renderer(canvas, opt) {
   const ctx = canvas.getContext("2d");
   const oc = document.createElement("canvas"), ox = oc.getContext("2d", { willReadFrequently: true });
-  const self = { canvas, ctx, cw: opt.cw, ch: opt.ch, ss: opt.ss, W: 0, H: 0, cols: 0, rows: 0, trail: null, effects: [], bodies: new Map(), hits: [], hover: new Map() };
+  const self = { canvas, ctx, cw: opt.cw, ch: opt.ch, ss: opt.ss, W: 0, H: 0, cols: 0, rows: 0, trail: null, effects: [], bodies: new Map(), hits: [], hover: new Map(),
+    // veNen = có tô nền đặc hay không. Khi chạy như lớp phủ trên AGY thì
+    // KHÔNG tô nền (nền tối của AGY đã đủ), khi render ảnh thì tô.
+    veNen: opt.veNen !== false };
 
   self.resize = (W, H) => {
     const dpr = opt.dpr ?? Math.min(2, devicePixelRatio || 1);
@@ -85,6 +88,9 @@ function Renderer(canvas, opt) {
   self.frame = (theme, t, dt, mouse) => {
     const { cw, ch, cols, rows, W, H } = self;
     ctx.setTransform(self.dpr, 0, 0, self.dpr, 0, 0);
+    // Không vẽ nền đặc thì phải xoá sạch khung trước, nếu không hình cũ đọng
+    // lại. (Có nền đặc thì chính nền đã phủ kín nên không cần.)
+    if (!self.veNen) ctx.clearRect(0, 0, W, H);
     self.effects = self.effects.filter((f) => t - f.t < f.life);
     self.hits = [];
     const ripples = self.effects.filter((f) => f.kind === "ripple");
@@ -131,10 +137,17 @@ function Renderer(canvas, opt) {
       },
     };
 
-    theme.bg(ctx, env);
-    ctx.fillStyle = theme.grid;
-    for (let x = 0; x < W; x += cw) ctx.fillRect(x, 0, 1, H);
-    for (let y = 0; y < H; y += ch) ctx.fillRect(0, y, W, 1);
+    // ── Nền ────────────────────────────────────────────────────────────────
+    // Ở chế độ lớp phủ thì KHÔNG vẽ nền đặc: nền của AGY đã tối sẵn, và lớp
+    // phủ nằm trên chữ nên tô kín màn hình là chữ biến mất. Chỉ vẽ nền khi
+    // chạy như hình nền thật (render ảnh, xem trước).
+    if (self.veNen) theme.bg(ctx, env);
+
+    if (self.veNen) {
+      ctx.fillStyle = theme.grid;
+      for (let x = 0; x < W; x += cw) ctx.fillRect(x, 0, 1, H);
+      for (let y = 0; y < H; y += ch) ctx.fillRect(0, y, W, 1);
+    }
 
     ctx.font = `600 ${Math.round(ch * 0.6)}px "Geist Mono", ui-monospace, monospace`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
