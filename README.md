@@ -10,14 +10,7 @@ mọi slash command (`/code`, `/boost`, `/browser`, …) của Antigravity.
 
 ---
 
-## 📍 Vị trí mã nguồn
-
-```
-C:\Users\b\.gemini\antigravity\scratch\antigravitinho
-```
-
 ---
-
 ## 🧠 Cách hoạt động
 
 Antigravity là ứng dụng Electron và bật sẵn cổng gỡ lỗi nội bộ, ghi tại:
@@ -33,7 +26,7 @@ vào chính trang của Antigravity.
 Vì lớp này nằm *trong* trang AGY nên nó:
 
 - Dính chặt cửa sổ: di chuyển, đổi kích thước, thu nhỏ, chuyển workspace đều theo
-- Không che code: dùng `globalCompositeOperation = "screen"` và alpha thấp
+- Không che code: không tô nền đặc — chỉ vẽ sinh vật, chừa menu bar/thanh tab/ô nhập tin
 - Không bao giờ ghi vào dữ liệu của AGY
 
 Nếu AGY điều hướng SPA làm mất DOM, app tự gắn lại sau mỗi 3 giây.
@@ -83,7 +76,7 @@ sâu — không phải vài nét vector thưa thớt.
 | 🌠 **Cực Quang Tuyết** | cực quang, núi tuyết, cabin gỗ |
 | 👾 **Arcade 8-bit** | đội hình người ngoài hành tinh, pháo đài, điểm số |
 
-Bảy giao diện cuối (`claude` → `arcade`) chuyển từ
+Chín giao diện cuối (`claude` → `arcade`) chuyển từ
 [Claudinho](https://github.com/Lu1sR0/claudinho) của Luis Roberto (MIT) — xem
 `src/renderer/ascii-themes.js`. Sáu giao diện đầu là bản port riêng, giữ nguyên
 hình đang có.
@@ -121,6 +114,10 @@ mới mà không đổi kích thước cửa sổ:
 
 Không tìm thấy phần tử thì rơi về 35/90 (thà chừa hơi nhiều còn hơn che chữ).
 
+Độ đậm hiệu dụng = độ đậm bạn đặt × hệ số theo độ sáng chủ đề. Hệ số đo một lần
+cho mỗi chủ đề (`doSangCuaTheme`), chủ đề tối giữ nguyên, chủ đề sáng bị hạ — nên
+không phải chỉnh tay khi đổi giao diện.
+
 ### Khung Browser nhúng
 
 Khi mở Browser trong AGY, AGY đặt `body[data-has-browser-hole="true"]` và khung
@@ -130,10 +127,6 @@ nằm trên và hình ASCII sẽ trùm lên trang web. `doLoBrowser()` đo khung
 lỗ bằng `destination-out` mỗi khung hình — không tốn gì khi view native nằm trên.
 
 Chỉ đọc DOM, **không gọi API nội bộ** của AGY (`window.electronNative` để nguyên).
-
-Độ đậm hiệu dụng = độ đậm bạn đặt × hệ số theo độ sáng chủ đề. Hệ số đo một lần
-cho mỗi chủ đề (`doSangCuaTheme`), chủ đề tối giữ nguyên, chủ đề sáng bị hạ — nên
-không phải chỉnh tay khi đổi giao diện.
 
 ### Thử nghiệm: nền AGY trong suốt
 
@@ -194,7 +187,7 @@ App chạy nền dưới **khay hệ thống**. Không có cửa sổ chat riên
 | --- | --- |
 | **Click icon khay** | Gắn / gỡ lớp phủ |
 | **Double-click icon khay** | Gắn lại ngay |
-| **Chuột phải icon khay** | Menu: đổi giao diện, độ đậm, tự động gắn, khởi động cùng Windows, thoát |
+| **Chuột phải icon khay** | Menu: đổi giao diện, độ đậm, tự động gắn, khởi động cùng Windows, thử nghiệm, thoát |
 | **Ctrl + Shift + Space** | Ẩn / hiện lớp phủ từ bất kỳ đâu |
 | **Rê chuột góc dưới-phải** | Hiện dock nhỏ để đổi nhanh giao diện |
 
@@ -202,6 +195,9 @@ App **chỉ cho phép một instance**: mở lần thứ hai sẽ không tạo t
 hay hộp thoại nào.
 
 Muốn app tự chạy mỗi lần bật máy: chuột phải icon khay → **Khởi động cùng Windows**.
+
+Muốn thử nền AGY trong suốt: chuột phải icon khay → **Thử nghiệm** → *Nền AGY trong suốt*
+(mặc định tắt; đây là sửa CSS của AGY, có thể vỡ khi AGY cập nhật).
 
 ### Gỡ rồi gắn lại nhiều lần vẫn mượt
 
@@ -258,6 +254,7 @@ antigravitinho/
     ├── tao-icon-agy.mjs         # sinh lại bộ icon chữ A từ path vector + gradient
     ├── tao-icon-khay.mjs        # sinh icon khay từ ảnh chân dung (cắt tròn + crop)
     ├── tao-shortcut.ps1         # tạo / gỡ shortcut Desktop + Start Menu
+    ├── render-lop-phu.js        # render ảnh chế độ lớp phủ (bỏ nền, chừa 3 vùng)
     ├── render-themes.js         # render mọi chủ đề ra PNG để kiểm tra bằng mắt
     ├── test-chan-dialog.mjs     # test bộ chặn spam (node --test)
     ├── test-tuong-tac.mjs       # test tương tác mascot (13 mục)
@@ -266,7 +263,7 @@ antigravitinho/
     ├── test-chu-de.mjs          # test từng chủ đề vẽ ra hình thật (64 mục)
     ├── test-khong-che-chu.mjs   # test lớp phủ không che chữ AGY (73 mục)
     ├── test-menu.mjs            # test menu khay gọn, đủ 15 chủ đề (9 mục)
-    ├── test-khay.mjs            # test icon khay nạp được vào Tray
+    ├── test-khay.mjs            # test icon khay nạp được vào Tray (13 mục)
     ├── preview-mascot.html      # xem mascot ở kích thước lớn
     └── preview-khay.html        # xem icon khay trên nền tối/sáng
 ```
@@ -278,7 +275,7 @@ antigravitinho/
 ```powershell
 cd "C:\Users\b\.gemini\antigravity\scratch\antigravitinho"
 
-# Cú pháp + hợp đồng module + chặn spam hộp thoại (nhanh, thuần Node) — 16 mục
+# Cú pháp + hợp đồng module + chặn spam hộp thoại (nhanh, thuần Node) — 17 mục
 npm test
 
 # Test tương tác mascot — 13 mục
@@ -305,7 +302,7 @@ npm test
 # Render mọi chủ đề ra PNG để xem bằng mắt → dist-anh/
 .\node_modules\electron\dist\electron.exe tools\render-themes.js
 
-# Render đúng thứ người dùng thấy (bỏ nền, chừa 2 dải) → dist-anh/lop-phu/
+# Render đúng thứ người dùng thấy (bỏ nền, chừa 3 vùng) → dist-anh/lop-phu/
 .\node_modules\electron\dist\electron.exe tools\render-lop-phu.js
 ```
 
