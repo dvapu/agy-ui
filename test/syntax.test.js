@@ -184,10 +184,19 @@ test("lớp phủ không được che chữ AGY", () => {
   // 2. Hai dải chừa: đo bằng DOM, không dùng số cứng
   assert.ok(engine.includes("doVungChua()"),
     "thiếu doVungChua() — phải đo vùng chừa theo layout thật");
-  assert.ok(engine.includes("agentSidePanelInputBox"),
-    "phải tìm ô nhập tin của AGY để chừa");
+  // Ô nhập tin có DẤU CHẤM trong id: viết #antigravity.agentSidePanelInputBox
+  // sẽ bị hiểu thành id + class nên không bao giờ khớp.
+  assert.ok(engine.includes('[id="antigravity.agentSidePanelInputBox"]'),
+    'phải dùng [id="antigravity.agentSidePanelInputBox"] — #id có dấu chấm không khớp');
+  assert.ok(engine.includes('@container/titlebar'),
+    "phải chừa cả thanh tab ([class*=\"@container/titlebar\"]), không chỉ menu bar 35px");
   assert.ok(engine.includes("xoaVungChua()"),
     "thiếu bước xoá vùng chừa khỏi canvas");
+
+  // Khung Browser nhúng phải được khoét lỗ
+  assert.ok(engine.includes("doLoBrowser()"), "thiếu doLoBrowser() — không khoét lỗ Browser");
+  assert.ok(engine.includes("data-has-browser-hole"),
+    "phải dò body[data-has-browser-hole] của AGY");
 
   // destination-out bị nhân với globalAlpha -> phải đặt lại = 1
   const thanXoa = engine.slice(engine.indexOf("xoaVungChua() {"), engine.indexOf("vungVe() {"));
@@ -212,6 +221,19 @@ test("lớp phủ không được che chữ AGY", () => {
   const bridge = doc("src", "agy-bridge.js");
   assert.ok(bridge.includes('"__antigravitinho-css-agy"'),
     "MA_GO_LOP_PHU phải gỡ cả CSS thử nghiệm");
+
+  // 6. Không dùng live blur: backdrop-filter làm Electron rớt khung khi cuộn
+  //    (đo được ở Claudinho: phải pre-bake blur ra canvas thay vì CSS).
+  assert.ok(!/backdrop-filter\s*:\s*blur/.test(injector),
+    "không được dùng backdrop-filter: blur() — Electron cuộn sẽ giật");
+  // 7. CSS làm trong suốt không được dùng selector rộng: [class*="bg-background"]
+  //    trúng cả bảng markdown, bubble chat, code block -> chữ mất nền.
+  assert.ok(!/\[class\*="bg-background"\]/.test(injector),
+    'không dùng [class*="bg-background"] — trúng bảng markdown và bubble chat');
+  assert.ok(injector.includes('[data-side-panel-body="true"]'),
+    "phải liệt kê đúng lớp nền của AGY bằng data attribute");
+  assert.ok(/overview-panel-host-sibling/.test(injector),
+    "panel nổi phải được giữ nền (không trong suốt)");
 });
 
 test("main.js không đụng vào DB của Antigravity", () => {

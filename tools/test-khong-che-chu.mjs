@@ -3,10 +3,16 @@
 // Đây là lỗi người dùng báo: "có theme đè lên hẳn chữ với nguyên cái giao diện
 // prompting luôn, không thấy chữ hay thấy đường để dùng".
 //
-// Ba thứ được canh:
+// Năm thứ được canh:
 //   1. Không tô nền đặc (chỉ vẽ sinh vật) — nếu tô, cả màn hình thành một màu.
-//   2. Hai dải ngang (thanh trên + ô nhập tin) phải sạch tuyệt đối.
+//   2. Hai dải ngang phải sạch tuyệt đối: menu bar (0–35) + thanh tab (35–75)
+//      và ô nhập tin.
 //   3. Chủ đề sáng phải bị hạ alpha để chữ trắng còn đọc được.
+//   4. Vùng chừa phải ĐO bằng DOM, không dùng số cứng: thanh tab
+//      ([class*="@container/titlebar"]) và ô nhập tin
+//      ([id="antigravity.agentSidePanelInputBox"]).
+//   5. Khung Browser nhúng ([data-browser-hole]) phải được khoét lỗ, không để
+//      hình ASCII trùm lên trang web.
 //
 // Chạy: electron tools/test-khong-che-chu.mjs
 
@@ -157,6 +163,85 @@ app.whenReady().then(async () => {
     return +(n / tong).toFixed(4);
   })()`).catch((e) => ({ loi: e.message }));
   kiemTra("render ảnh: nền phủ kín", nenDayDu === 1, String(nenDayDu));
+
+  ghi("[4] Đo vùng chừa theo layout thật: thanh tab + ô nhập tin");
+  // Dựng lại đúng cấu trúc AGY: menu bar 0-35, thanh tab 35-75, ô nhập tin đáy.
+  // Trước đây chỉ chừa 35px nên thanh tab (nền trong suốt) bị lớp phủ đè lên;
+  // và selector "#antigravity.agentSidePanelInputBox" không bao giờ khớp nên
+  // chiều cao ô nhập tin luôn rơi về số cứng 90.
+  const chua = await win.webContents.executeJavaScript(`(() => {
+    const khung = document.createElement("div");
+    khung.className = "agy-shell";
+    khung.style.cssText = "position:absolute;inset:0";
+    const cao = window.innerHeight;
+    khung.innerHTML = [
+      '<div class="shrink-0" style="position:absolute;left:0;top:0;width:1600px;height:35px"></div>',
+      '<div class="@container/titlebar" style="position:absolute;left:257px;top:35px;width:1343px;height:40px"></div>',
+      '<div id="antigravity.agentSidePanelInputBox" style="position:absolute;left:721px;top:' + (cao - 82) + 'px;width:768px;height:82px"></div>',
+    ].join("");
+    document.body.appendChild(khung);
+
+    const eng = new ThemesEngine(document.getElementById("c"));
+    eng.setCheDoPhu(true);
+    eng.datKichThuoc(1600, 900);
+    const kq = { chua: { ...eng.chua } };
+    khung.remove();
+    return kq;
+  })()`).catch((e) => ({ loi: e.message }));
+
+  kiemTra("chừa được thanh tab (75px, không phải 35px)",
+    chua.chua?.tren === 75, JSON.stringify(chua.chua));
+  kiemTra("đo được ô nhập tin thật (82px, không phải số cứng 90)",
+    chua.chua?.duoi === 82, JSON.stringify(chua.chua));
+  // Khi không có DOM AGY thì phải rơi về số cứng, không được chừa 0
+  const macDinh = await win.webContents.executeJavaScript(`(() => {
+    const eng = new ThemesEngine(document.getElementById("c"));
+    eng.setCheDoPhu(true);
+    eng.datKichThuoc(1600, 900);
+    return { ...eng.chua };
+  })()`).catch((e) => ({ loi: e.message }));
+  kiemTra("không có DOM AGY vẫn có mặc định an toàn",
+    macDinh.tren === 35 && macDinh.duoi === 90, JSON.stringify(macDinh));
+
+  ghi("[5] Khung Browser nhúng: lớp phủ phải khoét lỗ, không trùm lên trang web");
+  const lo = await win.webContents.executeJavaScript(`(() => {
+    // AGY đánh dấu body khi mở khung duyệt web
+    document.body.setAttribute("data-has-browser-hole", "true");
+    const khung = document.createElement("div");
+    khung.setAttribute("data-browser-hole", "true");
+    khung.style.cssText = "position:absolute;left:900px;top:100px;width:600px;height:400px";
+    document.body.appendChild(khung);
+
+    const cv = document.getElementById("c");
+    const eng = new ThemesEngine(cv);
+    eng.setCheDoPhu(true);
+    eng.setTheme("matrix");
+    eng.datKichThuoc(1600, 900);
+    // Đặt SAU datKichThuoc: nếu đặt trước, doVungChua() ghi đè lại.
+    eng.chua = { tren: 0, duoi: 0 };
+    for (let f = 0; f < 30; f++) eng.veMotKhung(f / 24);
+
+    const doc = (x0, y0, w, h) => {
+      const d = cv.getContext("2d").getImageData(x0, y0, w, h).data;
+      let n = 0, t = 0;
+      for (let i = 3; i < d.length; i += 4 * 5) { t++; if (d[i] > 8) n++; }
+      return +(n / t).toFixed(4);
+    };
+    const kq = {
+      trongLo: doc(910, 110, 580, 380),
+      ngoaiLo: doc(100, 200, 400, 300),
+      loDaDo: eng.loBrowser,
+    };
+    khung.remove();
+    document.body.removeAttribute("data-has-browser-hole");
+    return kq;
+  })()`).catch((e) => ({ loi: e.message }));
+
+  kiemTra("khoét lỗ đúng vị trí khung Browser",
+    lo.loDaDo && Math.round(lo.loDaDo.x) === 900 && Math.round(lo.loDaDo.w) === 600,
+    JSON.stringify(lo.loDaDo));
+  kiemTra(`lỗ Browser sạch tuyệt đối (${lo.trongLo})`, lo.trongLo === 0, String(lo.trongLo));
+  kiemTra(`ngoài lỗ vẫn có hình (${lo.ngoaiLo})`, lo.ngoaiLo > 0.01, String(lo.ngoaiLo));
 
   ghi("");
   ghi("Bảng đo (100% = phủ kín):");

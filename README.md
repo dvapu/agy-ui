@@ -94,19 +94,42 @@ chuột tạo hiệu ứng riêng của từng cảnh.
 ### Không che chữ của Antigravity
 
 Lớp phủ nằm **trên** nội dung AGY, nên nếu tô kín màn hình thì chữ trắng của AGY
-biến mất — đúng lỗi từng gặp với `clouds`, `boats`, `sakura`. Ba quy tắc giữ cho
+biến mất — đúng lỗi từng gặp với `clouds`, `boats`, `sakura`. Bốn quy tắc giữ cho
 chữ luôn đọc được, đo trên AGY thật (1707×912):
 
 | Quy tắc | Trước | Sau |
 | --- | --- | --- |
 | **Không tô nền đặc** — chỉ vẽ sinh vật, để nền tối của AGY lộ ra | vùng giữa bị phủ 100% | 4–37% |
-| **Chừa thanh trên (35px) và ô nhập tin (90px)** | phủ 100% | **0%** |
+| **Chừa cả menu bar (35px) LẪN thanh tab (75px)** | thanh tab bị phủ 14% | **0%** |
+| **Chừa ô nhập tin (đo được 106px)** | phủ 100% | **0%** |
 | **Tự hạ độ đậm theo độ sáng chủ đề** | `clouds` alpha 255 (trắng xoá) | alpha 56 |
 
-Hai con số 35px và 90px **không phải số cứng**: `doVungChua()` đo trực tiếp
-`getBoundingClientRect()` của thanh trên và của `#antigravity.agentSidePanelInputBox`,
-nên AGY đổi giao diện hay đổi kích thước cửa sổ đều theo đúng. Không tìm thấy
-phần tử thì rơi về 35/90.
+Các con số **không phải số cứng**: `doVungChua()` đo trực tiếp
+`getBoundingClientRect()` của ba phần tử, và đo lại mỗi giây vì AGY có thể mở tab
+mới mà không đổi kích thước cửa sổ:
+
+| Vùng | Phần tử đo |
+| --- | --- |
+| Menu bar | `div.shrink-0` đầu tiên của `.agy-shell` |
+| Thanh tab | `[class*="@container/titlebar"]` — nền **trong suốt** nên phải chừa |
+| Ô nhập tin | `[id="antigravity.agentSidePanelInputBox"]` |
+
+> **Bẫy:** id của ô nhập tin có **dấu chấm**. `#antigravity.agentSidePanelInputBox`
+> bị hiểu thành id `antigravity` + class `agentSidePanelInputBox` nên **không bao giờ
+> khớp** — phải viết `[id="antigravity.agentSidePanelInputBox"]`. Trước khi sửa lỗi
+> này, phép đo chưa từng chạy và luôn rơi về số cứng 90.
+
+Không tìm thấy phần tử thì rơi về 35/90 (thà chừa hơi nhiều còn hơn che chữ).
+
+### Khung Browser nhúng
+
+Khi mở Browser trong AGY, AGY đặt `body[data-has-browser-hole="true"]` và khung
+duyệt web nằm trên `[data-browser-hole]`. Khung đó là `WebContentsView` native nên
+thường nằm **trên** DOM; nhưng khi AGY hạ nó xuống (mở portal/overlay) thì lớp phủ
+nằm trên và hình ASCII sẽ trùm lên trang web. `doLoBrowser()` đo khung đó và khoét
+lỗ bằng `destination-out` mỗi khung hình — không tốn gì khi view native nằm trên.
+
+Chỉ đọc DOM, **không gọi API nội bộ** của AGY (`window.electronNative` để nguyên).
 
 Độ đậm hiệu dụng = độ đậm bạn đặt × hệ số theo độ sáng chủ đề. Hệ số đo một lần
 cho mỗi chủ đề (`doSangCuaTheme`), chủ đề tối giữ nguyên, chủ đề sáng bị hạ — nên
@@ -118,8 +141,28 @@ Menu khay → **Thử nghiệm** → *Nền AGY trong suốt*. Mặc định **t
 
 Bật thì các panel của AGY thành trong suốt để hình nền lộ ra sau chữ. Đây là
 **sửa CSS của AGY** nên tách riêng: có `<style id="__antigravitinho-css-agy">`
-riêng, gỡ lớp phủ là gỡ luôn, và AGY cập nhật phiên bản có thể làm vỡ. Chỉ đụng
-`background-color`, không đụng layout, chữ hay sự kiện.
+riêng, gỡ lớp phủ là gỡ luôn, và AGY cập nhật phiên bản có thể làm vỡ.
+
+Danh sách selector **không đoán** — quét DOM thật (1707×912) thấy đúng 6 phần tử
+có nền đục phủ >5% màn hình, và chỉ làm trong suốt 5 lớp nền:
+
+```css
+.agy-shell, .agy-shell > div, .agy-inset-shell, [class*="agy-inset-shell"],
+[data-main-content-body="true"], [data-side-panel-body="true"],
+.agy-shell .bg-sidebar, [data-testid="subagent-tab-sidebar"]
+```
+
+Ba thứ **giữ nền** vì trong suốt sẽ hỏng:
+
+| Giữ nền | Vì sao |
+| --- | --- |
+| `[data-testid="overview-panel-host-sibling"]`, `[role="dialog"]` | panel nổi, trong suốt là chữ chồng chữ |
+| `[id="antigravity.agentSidePanelInputBox"]` | giữ khung mờ `rgba(16,16,16,.72)` khi gõ |
+| Bảng markdown, bubble chat, code block | **không** dùng selector rộng kiểu `[class*="bg-background"]` — nó trúng cả những thứ này và chữ mất nền |
+
+Thêm `will-change: scroll-position` cho vùng cuộn khi bật chế độ này: mất nền đục
+thì Chromium dễ bỏ GPU layer và cuộn bị giật. Không dùng `backdrop-filter: blur()`
+— blur thật làm Electron rớt khung khi cuộn.
 
 ---
 
@@ -221,7 +264,7 @@ antigravitinho/
     ├── test-inject.mjs          # test chèn/gỡ lớp phủ (20 mục)
     ├── test-gan-lai.mjs         # test gắn/gỡ nhiều lần không rò rỉ vòng lặp (28 mục)
     ├── test-chu-de.mjs          # test từng chủ đề vẽ ra hình thật (64 mục)
-    ├── test-khong-che-chu.mjs   # test lớp phủ không che chữ AGY (67 mục)
+    ├── test-khong-che-chu.mjs   # test lớp phủ không che chữ AGY (73 mục)
     ├── test-menu.mjs            # test menu khay gọn, đủ 15 chủ đề (9 mục)
     ├── test-khay.mjs            # test icon khay nạp được vào Tray
     ├── preview-mascot.html      # xem mascot ở kích thước lớn
@@ -253,7 +296,7 @@ npm test
 # Test từng chủ đề vẽ ra hình thật — 64 mục
 .\node_modules\electron\dist\electron.exe tools\test-chu-de.mjs
 
-# Test lớp phủ không che chữ AGY — 67 mục
+# Test lớp phủ không che chữ AGY — 73 mục
 .\node_modules\electron\dist\electron.exe tools\test-khong-che-chu.mjs
 
 # Test menu khay gọn, đủ chủ đề — 9 mục
@@ -266,7 +309,7 @@ npm test
 .\node_modules\electron\dist\electron.exe tools\render-lop-phu.js
 ```
 
-Tổng cộng **230 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
+Tổng cộng **237 mục kiểm tra**. Kết quả hiện tại: tất cả đạt.
 
 ---
 

@@ -116,6 +116,32 @@ Khay hệ thống (Tray)
 11. **Đo độ sáng phải composite lên nền.** Điểm ảnh trắng nhưng alpha 40 thì
     mắt thấy xám. Đo RGB gốc sẽ kết luận sai là "chữ bị che".
 
+12. **Thanh trên của AGY là HAI dải, không phải một.** `0–35` là menu bar
+    (`div.shrink-0`), `35–75` là thanh tab (`[class*="@container/titlebar"]`).
+    Thanh tab có nền **trong suốt** (`rgba(0,0,0,0)`) nên lớp phủ đè thẳng lên
+    tên tab và nút Open IDE nếu chỉ chừa 35px. Đo thật: bị phủ 14.3%.
+
+13. **id có dấu chấm phải viết `[id="..."]`.** Ô nhập tin của AGY có id
+    `antigravity.agentSidePanelInputBox`. Selector `#antigravity.agentSidePanelInputBox`
+    bị hiểu thành id `antigravity` + class `agentSidePanelInputBox` nên **không
+    bao giờ khớp** — phép đo chưa từng chạy, luôn rơi về số cứng 90.
+
+14. **Đừng dùng selector rộng khi làm trong suốt nền AGY.** `[class*="bg-background"]`
+    trúng cả bảng markdown, bubble chat, code block -> chữ mất nền, khó đọc.
+    Danh sách đúng chỉ có 5 lớp nền: `.agy-inset-shell`,
+    `[data-main-content-body="true"]`, `[data-side-panel-body="true"]`,
+    `.bg-sidebar`, `[data-testid="subagent-tab-sidebar"]`. Panel nổi
+    (`[data-testid="overview-panel-host-sibling"]`, `[role="dialog"]`) phải GIỮ nền.
+
+15. **Không gọi API nội bộ của AGY.** `window.electronNative.setTitleBarOverlay`,
+    `wcvBrowser.*` (WebContentsView) đều tồn tại nhưng thuộc AGY — dùng là vi
+    phạm quy tắc 2. Chỉ đọc DOM, ghi CSS/canvas qua `Runtime.evaluate`.
+
+16. **Browser pane là `WebContentsView` native.** Khi mở Browser, AGY đặt
+    `body[data-has-browser-hole="true"]` và khung trên `[data-browser-hole]`.
+    View native thường nằm TRÊN DOM, nhưng khi AGY hạ nó xuống thì lớp phủ che
+    trang web — nên `doLoBrowser()` khoét lỗ bằng `destination-out`.
+
 ---
 
 ## 3. Cấu trúc thư mục
@@ -171,7 +197,7 @@ Test đầy đủ (cần Electron):
 .\node_modules\electron\dist\electron.exe tools\test-tuong-tac.mjs  # 13 muc
 .\node_modules\electron\dist\electron.exe tools\test-khay.mjs       # 13 muc
 .\node_modules\electron\dist\electron.exe tools\test-chu-de.mjs     # 64 muc
-.\node_modules\electron\dist\electron.exe tools\test-khong-che-chu.mjs  # 67 muc
+.\node_modules\electron\dist\electron.exe tools\test-khong-che-chu.mjs  # 73 muc
 .\node_modules\electron\dist\electron.exe tools\test-menu.mjs       # 9 muc
 ```
 

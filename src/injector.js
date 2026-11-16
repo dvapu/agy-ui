@@ -127,6 +127,15 @@ export function taoMaInjection(cauHinh = {}) {
       pointer-events: none;
     }
 
+    /* Khi bật "nền AGY trong suốt", các vùng cuộn mất nền đục nên Chromium dễ
+       bỏ GPU layer và cuộn bị giật. Giữ layer bằng will-change — chỉ khai báo
+       thuộc tính, không đổi giao diện. */
+    ${
+      nenTrongSuot
+        ? `.agy-shell .overflow-y-auto, .agy-shell .overflow-auto { will-change: scroll-position; }`
+        : ""
+    }
+
     /* Khung bắt chuột bám theo mascot — chỉ vùng này nhận chuột */
     #\${ID} .hit {
       position: absolute; left: 0; top: 0;
@@ -185,11 +194,29 @@ export function taoMaInjection(cauHinh = {}) {
     const styleAgy = document.createElement("style");
     styleAgy.id = ID + "-css-agy";
     styleAgy.textContent = \`
-      /* Nền các khối lớn của AGY -> trong suốt, chỉ để lại chữ.
+      /* Nền các khối LỚN của AGY -> trong suốt, chỉ để lại chữ.
+         Danh sách này không đoán: đã quét DOM thật (1707x912) và đây đúng là
+         5 phần tử có nền đục phủ >5% diện tích màn hình. Dùng [data-*] thay vì
+         class Tailwind vì class đổi theo bản AGY, data attribute thì ổn định.
+         KHÔNG dùng selector rộng kiểu class*="bg-background": nó trúng cả
+         bubble chat, bảng markdown, code block -> chữ mất nền, khó đọc.
          Chỉ đụng background-color, không đụng layout / chữ / sự kiện. */
-      .agy-shell, .agy-shell > div, .agy-shell [class*="bg-background"],
-      .agy-shell [class*="bg-sidebar"], .agy-shell [class*="bg-card"] {
+      .agy-shell,
+      .agy-shell > div,
+      .agy-inset-shell,
+      [class*="agy-inset-shell"],
+      [data-main-content-body="true"],
+      [data-side-panel-body="true"],
+      .agy-shell .bg-sidebar,
+      [data-testid="subagent-tab-sidebar"] {
         background-color: transparent !important;
+      }
+      /* Panel nổi (Overview, Settings) phải giữ nền: nó đè lên nội dung khác,
+         trong suốt là chữ chồng chữ. Ghi đè lại sau quy tắc trên. */
+      [data-testid="overview-panel-host-sibling"],
+      [class*="settings-modal"],
+      [role="dialog"] {
+        background-color: rgb(19,19,23) !important;
       }
       /* Ô nhập tin giữ nền mờ để vẫn thấy khung khi gõ.
          Dùng [id="..."] thay vì #id vì id có dấu chấm (không phải ký tự hợp lệ

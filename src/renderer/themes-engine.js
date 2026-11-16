@@ -168,22 +168,37 @@ export class ThemesEngine {
     let tren = 0;
     let duoi = 0;
 
-    // Thanh trên cùng: phần tử con đầu tiên của .agy-shell có chiều cao nhỏ
+    // Thanh trên gồm HAI dải chồng nhau, phải chừa cả hai:
+    //   · 0–35   menu bar của Electron (div.shrink-0 đầu tiên của .agy-shell)
+    //   · 35–75  thanh tab của workspace ([class*="@container/titlebar"])
+    // Thanh tab có nền TRONG SUỐT (rgba(0,0,0,0)) nên lớp phủ sẽ đè thẳng lên
+    // tên tab và các nút Open IDE / chia đôi màn hình nếu chỉ chừa 35px.
+    // Đo thật trên AGY 1707×912: bỏ sót thanh tab thì nó bị phủ 14.3%.
     try {
-      const top = document.querySelector(".agy-shell > div:first-child, .agy-shell > div");
-      const r = top?.getBoundingClientRect?.();
+      const menu = document.querySelector(".agy-shell > div:first-of-type, .agy-shell > div");
+      const r = menu?.getBoundingClientRect?.();
       if (r && r.height > 10 && r.height < 80 && r.top < 10) {
         tren = Math.round(r.bottom);
       } else {
         tren = 35;
       }
+
+      // Thanh tab: chỉ cộng vào, không thay thế — bản AGY cũ không có nó.
+      const tabbar = document.querySelector('[class*="@container/titlebar"]');
+      const rt = tabbar?.getBoundingClientRect?.();
+      if (rt && rt.height > 8 && rt.height < 80 && rt.top < 120) {
+        tren = Math.max(tren, Math.round(rt.bottom));
+      }
     } catch (e) {
       tren = 35;
     }
 
-    // Ô nhập tin: AGY đặt id cố định cho nó
+    // Ô nhập tin: AGY đặt id cố định cho nó.
+    // PHẢI dùng [id="..."] — viết #antigravity.agentSidePanelInputBox sẽ bị
+    // hiểu là id="antigravity" + class="agentSidePanelInputBox" nên KHÔNG BAO
+    // GIỜ khớp, và hàm luôn rơi về số cứng 90.
     try {
-      const hop = document.querySelector("#antigravity.agentSidePanelInputBox");
+      const hop = document.querySelector('[id="antigravity.agentSidePanelInputBox"]');
       const r = hop?.getBoundingClientRect?.();
       if (r && r.height > 20) {
         duoi = Math.round(window.innerHeight - r.top);
@@ -221,6 +236,7 @@ export class ThemesEngine {
     // Đo lại hai dải cần chừa theo layout THẬT của AGY. Đoán bằng số cứng thì
     // AGY đổi giao diện là hỏng; đo bằng DOM thì luôn đúng.
     this.doVungChua();
+    this.doLoBrowser();
 
     if (coEngineMoi(this.activeTheme)) {
       const w = this.cuaSoRong, h = this.cuaSoCao;
@@ -299,6 +315,15 @@ export class ThemesEngine {
 
   /** Vẽ đúng một khung tại thời điểm t (giây). */
   veMotKhung(t) {
+    // Đo lại vùng chừa khoảng 1 lần/giây: AGY mở tab mới (thanh tab xuất hiện)
+    // hay mở/đóng panel mà không đổi kích thước cửa sổ, nên resize không bắn.
+    // Chỉ đo khi đang làm lớp phủ — lúc render ảnh thì không cần.
+    if (this.cheDoPhu && (this._demDo = (this._demDo || 0) + 1) >= 24) {
+      this._demDo = 0;
+      this.doVungChua();
+      this.doLoBrowser();
+    }
+
     // Độ đậm hiệu dụng = độ đậm người dùng đặt × hệ số theo độ sáng chủ đề.
     // Chủ đề tối (ma trận, arcade) không bị hạ; chủ đề sáng (mây, tuyết, anh
     // đào) bị hạ mạnh để chữ trắng của AGY vẫn đọc được.
@@ -337,18 +362,19 @@ export class ThemesEngine {
     if (this.cheDoPhu) this.ctx.restore();
   }
 
-  /** Cắt bỏ hai dải chừa khỏi canvas (dùng destination-out, không đụng DOM AGY). */
+  /**
+   * Cắt bỏ những vùng không được vẽ: hai dải chừa (thanh trên + ô nhập tin) và
+   * lỗ của khung Browser nhúng. Dùng destination-out, không đụng DOM AGY.
+   */
   xoaVungChua() {
-    const v = this.vungVe();
-    if (!v) return;
     const { width: W, height: H } = this.cv;
     if (W < 2 || H < 2) return;
-    // Landing: vungVe trả px CSS của cửa sổ; canvas có thể cao khác (lagoon vẽ
-    // ở 1760 rồi CSS phóng lên) nên quy đổi theo CHIỀU CAO.
+    const v = this.vungVe();
+    const lo = this.cheDoPhu ? this.loBrowser : null;
+    if (!v && !lo) return;
+    // vungVe trả px CSS của cửa sổ; canvas có thể cao khác (lagoon vẽ ở 1760
+    // rồi CSS phóng lên) nên quy đổi theo CHIỀU CAO.
     const heSo = H / Math.max(1, this.cuaSoCao || H);
-    const tren = v.tren * heSo;
-    const duoi = v.duoi * heSo;
-    if (tren <= 0 && duoi >= H) return;
     this.ctx.save();
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.globalCompositeOperation = "destination-out";
@@ -357,9 +383,37 @@ export class ThemesEngine {
     // đó nên chỉ xoá được 45%, phần còn lại vẫn đè lên chữ.
     this.ctx.globalAlpha = 1;
     this.ctx.fillStyle = "#000";
-    if (tren > 0) this.ctx.fillRect(0, 0, W, tren);
-    if (duoi < H) this.ctx.fillRect(0, duoi, W, H - duoi);
+    if (v) {
+      const tren = v.tren * heSo;
+      const duoi = v.duoi * heSo;
+      if (tren > 0) this.ctx.fillRect(0, 0, W, tren);
+      if (duoi < H) this.ctx.fillRect(0, duoi, W, H - duoi);
+    }
+    if (lo) this.ctx.fillRect(lo.x * heSo, lo.y * heSo, lo.w * heSo, lo.h * heSo);
     this.ctx.restore();
+  }
+
+  /**
+   * Đo khung Browser nhúng của AGY, nếu đang mở.
+   *
+   * AGY đánh dấu `body[data-has-browser-hole="true"]` khi mở khung duyệt web và
+   * đặt khung trên `[data-browser-hole]`. Khung đó là WebContentsView native nên
+   * thường nằm TRÊN DOM và canvas không che được; nhưng khi AGY hạ view xuống
+   * (mở portal/overlay) thì canvas nằm trên và hình ASCII trùm lên trang web.
+   * Khoét lỗ cho chắc — không tốn gì khi view nằm trên.
+   *
+   * Chỉ đọc DOM, không gọi API nội bộ của AGY.
+   */
+  doLoBrowser() {
+    this.loBrowser = null;
+    if (!this.cheDoPhu) return;
+    try {
+      if (document.body?.getAttribute("data-has-browser-hole") !== "true") return;
+      const el = document.querySelector('[data-browser-hole]:not([data-browser-hole="false"])');
+      const r = el?.getBoundingClientRect?.();
+      if (!r || r.width < 2 || r.height < 2) return;
+      this.loBrowser = { x: r.left, y: r.top, w: r.width, h: r.height };
+    } catch (e) { /* AGY đang tải lại DOM */ }
   }
 
   /**
